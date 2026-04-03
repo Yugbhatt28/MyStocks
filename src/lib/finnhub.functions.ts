@@ -91,9 +91,22 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
         if (!res.ok) throw new Error(`API error ${res.status} for ${symbol}`);
         const q = await res.json();
         if (!q.c || q.c === 0) throw new Error(`No data for ${symbol}`);
+
+        // Fetch profile for real company name
+        let name = symbol;
+        try {
+          const profileRes = await fetch(
+            `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${apiKey}`
+          );
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            if (profile.name) name = profile.name;
+          }
+        } catch {}
+
         return {
           symbol,
-          name: STOCK_NAMES[symbol] || symbol,
+          name,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,
@@ -114,4 +127,34 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
     }
 
     return { quotes, errors };
+  });
+
+export const searchSymbols = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => searchSchema.parse(input))
+  .handler(async ({ data }): Promise<{ results: SymbolSearchResult[]; error: string | null }> => {
+    const apiKey = process.env.FINNHUB_API_KEY;
+    if (!apiKey) {
+      return { results: [], error: "FINNHUB_API_KEY is not configured" };
+    }
+
+    try {
+      const res = await fetch(
+        `https://finnhub.io/api/v1/search?q=${encodeURIComponent(data.query)}&token=${apiKey}`
+      );
+      if (!res.ok) {
+        return { results: [], error: `Search API error: ${res.status}` };
+      }
+      const json = await res.json();
+      const results: SymbolSearchResult[] = (json.result || [])
+        .filter((r: any) => r.type === "Common Stock")
+        .slice(0, 10)
+        .map((r: any) => ({
+          symbol: r.symbol,
+          description: r.description,
+          type: r.type,
+        }));
+      return { results, error: null };
+    } catch (err) {
+      return { results: [], error: `Search failed: ${err instanceof Error ? err.message : String(err)}` };
+    }
   });
