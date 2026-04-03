@@ -69,6 +69,7 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
         quote: {
           symbol: data.symbol,
           name,
+          logo,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,
