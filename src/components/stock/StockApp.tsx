@@ -8,6 +8,7 @@ import { Watchlist } from "./Watchlist";
 import { AlertToast, type StockAlert } from "./AlertToast";
 import { type StockData } from "@/lib/stockData";
 import { fetchRealStockData, fetchLiveUpdate } from "@/lib/stockApi";
+import { toast } from "sonner";
 
 export function StockApp() {
   const [view, setView] = useState<ViewType>("dashboard");
@@ -20,7 +21,11 @@ export function StockApp() {
   const handleSearch = useCallback(async (symbol: string) => {
     setLoading(true);
     try {
-      const data = await fetchRealStockData(symbol);
+      const { data, error } = await fetchRealStockData(symbol);
+      if (error || !data) {
+        toast.error(error || `No data found for ${symbol}`);
+        return;
+      }
       setStockData(data);
       prevDataRef.current = data;
       setView("dashboard");
@@ -33,7 +38,6 @@ export function StockApp() {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  // Live mode: fetch real data every 5 seconds
   useEffect(() => {
     if (!liveMode || !stockData) return;
 
@@ -43,7 +47,6 @@ export function StockApp() {
         const updated = await fetchLiveUpdate(stockData);
         setStockData(updated);
 
-        // Check alerts
         const newAlerts: StockAlert[] = [];
         if (oldData) {
           const pctChange = ((updated.currentPrice - oldData.currentPrice) / oldData.currentPrice) * 100;
@@ -92,7 +95,6 @@ export function StockApp() {
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
       <nav className="flex border-t border-border bg-card md:hidden">
         {(["dashboard", "market", "compare", "watchlist"] as ViewType[]).map((v) => (
           <button
