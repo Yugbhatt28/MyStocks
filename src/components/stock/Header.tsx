@@ -14,7 +14,7 @@ export function Header({ onSearch, liveMode, onToggleLive }: HeaderProps) {
   const [suggestions, setSuggestions] = useState<SymbolSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searching, setSearching] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
