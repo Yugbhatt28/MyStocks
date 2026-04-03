@@ -22,12 +22,16 @@ export interface FinnhubQuote {
   timestamp: number;
 }
 
-const STOCK_NAMES: Record<string, string> = {
-  AAPL: "Apple Inc.", GOOGL: "Alphabet Inc.", MSFT: "Microsoft Corp.",
-  AMZN: "Amazon.com Inc.", TSLA: "Tesla Inc.", META: "Meta Platforms",
-  NVDA: "NVIDIA Corp.", NFLX: "Netflix Inc.", JPM: "JPMorgan Chase",
-  V: "Visa Inc.", BA: "Boeing Co.", DIS: "Walt Disney Co.",
-};
+const searchSchema = z.object({
+  query: z.string().min(1).max(50),
+});
+
+export interface SymbolSearchResult {
+  symbol: string;
+  description: string;
+  type: string;
+}
+
 
 export const fetchStockQuote = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => quoteSchema.parse(input))
@@ -38,23 +42,30 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
     }
 
     try {
-      const res = await fetch(
-        `https://finnhub.io/api/v1/quote?symbol=${data.symbol}&token=${apiKey}`
-      );
-      if (!res.ok) {
-        return { quote: null, error: `Finnhub API error: ${res.status}` };
-      }
-      const q = await res.json();
+      const [quoteRes, profileRes] = await Promise.all([
+        fetch(`https://finnhub.io/api/v1/quote?symbol=${data.symbol}&token=${apiKey}`),
+        fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${data.symbol}&token=${apiKey}`),
+      ]);
 
-      // Finnhub returns { c, d, dp, h, l, o, pc, t } where c=current, d=change, dp=change%, h=high, l=low, o=open, pc=prev close, t=timestamp
+      if (!quoteRes.ok) {
+        return { quote: null, error: `Finnhub API error: ${quoteRes.status}` };
+      }
+      const q = await quoteRes.json();
+
       if (!q.c || q.c === 0) {
         return { quote: null, error: `No data found for symbol ${data.symbol}` };
+      }
+
+      let name = data.symbol;
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        if (profile.name) name = profile.name;
       }
 
       return {
         quote: {
           symbol: data.symbol,
-          name: STOCK_NAMES[data.symbol] || `${data.symbol}`,
+          name,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,
@@ -87,9 +98,22 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
         if (!res.ok) throw new Error(`API error ${res.status} for ${symbol}`);
         const q = await res.json();
         if (!q.c || q.c === 0) throw new Error(`No data for ${symbol}`);
+
+        // Fetch profile for real company name
+        let name = symbol;
+        try {
+          const profileRes = await fetch(
+            `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${apiKey}`
+          );
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            if (profile.name) name = profile.name;
+          }
+        } catch {}
+
         return {
           symbol,
-          name: STOCK_NAMES[symbol] || symbol,
+          name,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,
@@ -110,4 +134,34 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
     }
 
     return { quotes, errors };
+  });
+
+export const searchSymbols = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => searchSchema.parse(input))
+  .handler(async ({ data }): Promise<{ results: SymbolSearchResult[]; error: string | null }> => {
+    const apiKey = process.env.FINNHUB_API_KEY;
+    if (!apiKey) {
+      return { results: [], error: "FINNHUB_API_KEY is not configured" };
+    }
+
+    try {
+      const res = await fetch(
+        `https://finnhub.io/api/v1/search?q=${encodeURIComponent(data.query)}&token=${apiKey}`
+      );
+      if (!res.ok) {
+        return { results: [], error: `Search API error: ${res.status}` };
+      }
+      const json = await res.json();
+      const results: SymbolSearchResult[] = (json.result || [])
+        .filter((r: any) => r.type === "Common Stock")
+        .slice(0, 10)
+        .map((r: any) => ({
+          symbol: r.symbol,
+          description: r.description,
+          type: r.type,
+        }));
+      return { results, error: null };
+    } catch (err) {
+      return { results: [], error: `Search failed: ${err instanceof Error ? err.message : String(err)}` };
+    }
   });

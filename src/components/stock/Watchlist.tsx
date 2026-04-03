@@ -33,7 +33,7 @@ export function Watchlist({ onSelectStock }: WatchlistProps) {
     }
     let cancelled = false;
     setLoading(true);
-    fetchRealMarketData(symbols).then((data) => {
+    fetchRealMarketData(symbols).then(({ stocks: data }) => {
       if (!cancelled) {
         setStocks(data);
         setLoading(false);

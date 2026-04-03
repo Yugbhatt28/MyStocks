@@ -18,9 +18,10 @@ export function MarketOverview({ onSelectStock }: MarketOverviewProps) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchRealMarketData(MARKET_SYMBOLS).then((data) => {
+    fetchRealMarketData(MARKET_SYMBOLS).then(({ stocks, errors }) => {
       if (!cancelled) {
-        setMarketData(data);
+        setMarketData(stocks);
+        if (errors.length > 0) console.warn("Market fetch errors:", errors);
         setLoading(false);
       }
     });

@@ -16,7 +16,7 @@ export function CompareStocks() {
     setLoading(true);
     Promise.all(symbols.map((s) => fetchRealStockData(s))).then((results) => {
       if (!cancelled) {
-        setStocks(results);
+        setStocks(results.filter((r) => r.data !== null).map((r) => r.data!));
         setLoading(false);
       }
     });
