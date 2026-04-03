@@ -22,12 +22,16 @@ export interface FinnhubQuote {
   timestamp: number;
 }
 
-const STOCK_NAMES: Record<string, string> = {
-  AAPL: "Apple Inc.", GOOGL: "Alphabet Inc.", MSFT: "Microsoft Corp.",
-  AMZN: "Amazon.com Inc.", TSLA: "Tesla Inc.", META: "Meta Platforms",
-  NVDA: "NVIDIA Corp.", NFLX: "Netflix Inc.", JPM: "JPMorgan Chase",
-  V: "Visa Inc.", BA: "Boeing Co.", DIS: "Walt Disney Co.",
-};
+const searchSchema = z.object({
+  query: z.string().min(1).max(50),
+});
+
+export interface SymbolSearchResult {
+  symbol: string;
+  description: string;
+  type: string;
+}
+
 
 export const fetchStockQuote = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => quoteSchema.parse(input))
