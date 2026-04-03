@@ -68,7 +68,10 @@ function Section({ title, icon, stocks, onSelect }: { title: string; icon: React
             className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-surface-hover"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-foreground">{s.symbol}</span>
+              <div className="flex items-center gap-2">
+                {s.logo && <img src={s.logo} alt={s.name} className="h-5 w-5 rounded-full object-contain" />}
+                <span className="text-sm font-bold text-foreground">{s.symbol}</span>
+              </div>
               <span className={`text-xs font-semibold ${s.changePercent >= 0 ? "text-profit" : "text-loss"}`}>
                 {s.changePercent >= 0 ? "+" : ""}{s.changePercent.toFixed(2)}%
               </span>

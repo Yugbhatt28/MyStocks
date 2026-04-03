@@ -12,6 +12,7 @@ const multiQuoteSchema = z.object({
 export interface FinnhubQuote {
   symbol: string;
   name: string;
+  logo: string;
   currentPrice: number;
   previousClose: number;
   change: number;
@@ -57,15 +58,18 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
       }
 
       let name = data.symbol;
+      let logo = "";
       if (profileRes.ok) {
         const profile = await profileRes.json();
         if (profile.name) name = profile.name;
+        if (profile.logo) logo = profile.logo;
       }
 
       return {
         quote: {
           symbol: data.symbol,
           name,
+          logo,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,
@@ -101,6 +105,7 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
 
         // Fetch profile for real company name
         let name = symbol;
+        let logo = "";
         try {
           const profileRes = await fetch(
             `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${apiKey}`
@@ -108,12 +113,14 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
           if (profileRes.ok) {
             const profile = await profileRes.json();
             if (profile.name) name = profile.name;
+            if (profile.logo) logo = profile.logo;
           }
         } catch {}
 
         return {
           symbol,
           name,
+          logo,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,

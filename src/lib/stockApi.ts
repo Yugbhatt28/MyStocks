@@ -134,6 +134,7 @@ function quoteToStockData(quote: FinnhubQuote, existingData?: StockData): StockD
   return {
     symbol: quote.symbol,
     name: quote.name,
+    logo: quote.logo,
     currentPrice: quote.currentPrice,
     previousClose: quote.previousClose,
     change: quote.change,

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Plus, X, Star, Loader2 } from "lucide-react";
+import { X, Star, Loader2 } from "lucide-react";
 import { type StockData } from "@/lib/stockData";
 import { fetchRealMarketData } from "@/lib/stockApi";
 import { StockChart } from "./StockChart";
+import { SmartSearchInput } from "./SmartSearchInput";
 
 interface WatchlistProps {
   onSelectStock: (symbol: string) => void;
@@ -17,7 +18,6 @@ export function Watchlist({ onSelectStock }: WatchlistProps) {
       return ["AAPL", "TSLA", "NVDA"];
     }
   });
-  const [input, setInput] = useState("");
   const [stocks, setStocks] = useState<StockData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,11 +42,10 @@ export function Watchlist({ onSelectStock }: WatchlistProps) {
     return () => { cancelled = true; };
   }, [symbols.join(",")]);
 
-  const addSymbol = () => {
-    const sym = input.trim().toUpperCase();
+  const addSymbol = (symbol: string) => {
+    const sym = symbol.toUpperCase();
     if (sym && !symbols.includes(sym)) {
       setSymbols([...symbols, sym]);
-      setInput("");
     }
   };
 
@@ -62,16 +61,11 @@ export function Watchlist({ onSelectStock }: WatchlistProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addSymbol()}
-          placeholder="Add ticker..."
-          className="h-9 w-48 rounded-md border border-border bg-input px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        <SmartSearchInput
+          onSelect={addSymbol}
+          placeholder="Search & add stock..."
+          inputClassName="w-48"
         />
-        <button onClick={addSymbol} className="flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-          <Plus className="h-4 w-4" /> Add
-        </button>
       </div>
 
       {loading ? (
@@ -99,6 +93,7 @@ function WatchlistCard({ stock, onRemove, onSelect }: { stock: StockData; onRemo
       <div className="flex items-start justify-between">
         <button onClick={() => onSelect(stock.symbol)} className="text-left">
           <div className="flex items-center gap-2">
+            {stock.logo && <img src={stock.logo} alt={stock.name} className="h-6 w-6 rounded-full object-contain" />}
             <span className="font-bold text-foreground">{stock.symbol}</span>
             <span className={`text-xs font-semibold ${isProfit ? "text-profit" : "text-loss"}`}>
               {isProfit ? "+" : ""}{stock.changePercent.toFixed(2)}%
