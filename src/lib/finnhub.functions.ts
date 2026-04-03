@@ -12,6 +12,7 @@ const multiQuoteSchema = z.object({
 export interface FinnhubQuote {
   symbol: string;
   name: string;
+  logo: string;
   currentPrice: number;
   previousClose: number;
   change: number;
