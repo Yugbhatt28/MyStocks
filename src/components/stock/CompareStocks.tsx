@@ -1,26 +1,38 @@
-import { useState } from "react";
-import { Plus, X } from "lucide-react";
-import { generateStockData, calculateVolatility, type StockData } from "@/lib/stockData";
+import { useState, useEffect } from "react";
+import { Plus, X, Loader2 } from "lucide-react";
+import { calculateVolatility, type StockData } from "@/lib/stockData";
+import { fetchRealStockData } from "@/lib/stockApi";
 import { MultiChart } from "./MultiChart";
 
 export function CompareStocks() {
   const [symbols, setSymbols] = useState<string[]>(["AAPL", "GOOGL"]);
   const [input, setInput] = useState("");
-  const [stocks, setStocks] = useState<StockData[]>(() => symbols.map((s) => generateStockData(s)));
+  const [stocks, setStocks] = useState<StockData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch stock data whenever symbols change
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all(symbols.map((s) => fetchRealStockData(s))).then((results) => {
+      if (!cancelled) {
+        setStocks(results);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [symbols.join(",")]);
 
   const addSymbol = () => {
     const sym = input.trim().toUpperCase();
     if (sym && !symbols.includes(sym) && symbols.length < 5) {
-      const newSymbols = [...symbols, sym];
-      setSymbols(newSymbols);
-      setStocks([...stocks, generateStockData(sym)]);
+      setSymbols([...symbols, sym]);
       setInput("");
     }
   };
 
   const removeSymbol = (sym: string) => {
     setSymbols(symbols.filter((s) => s !== sym));
-    setStocks(stocks.filter((s) => s.symbol !== sym));
   };
 
   return (
@@ -46,7 +58,12 @@ export function CompareStocks() {
         </div>
       </div>
 
-      {stocks.length > 0 && (
+      {loading ? (
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2">Loading comparison data...</span>
+        </div>
+      ) : stocks.length > 0 ? (
         <>
           <div className="rounded-lg border border-border bg-card p-4">
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Price Comparison</h3>
@@ -71,7 +88,7 @@ export function CompareStocks() {
             ))}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

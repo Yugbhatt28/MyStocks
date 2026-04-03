@@ -175,7 +175,7 @@ export function addNewPrice(data: StockData): StockData {
   };
 }
 
-export { calculateVolatility };
+export { calculateVolatility, calculateStockSpan, calculateNextGreaterElement, calculateMaxProfit };
 
 // Market data for overview
 const MARKET_SYMBOLS = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "META", "NVDA", "NFLX", "JPM", "V", "BA", "DIS"];

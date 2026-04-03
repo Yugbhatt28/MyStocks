@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
-import { Plus, X, Star } from "lucide-react";
-import { generateStockData, type StockData } from "@/lib/stockData";
+import { useState, useEffect } from "react";
+import { Plus, X, Star, Loader2 } from "lucide-react";
+import { type StockData } from "@/lib/stockData";
+import { fetchRealMarketData } from "@/lib/stockApi";
 import { StockChart } from "./StockChart";
 
 interface WatchlistProps {
@@ -17,12 +18,29 @@ export function Watchlist({ onSelectStock }: WatchlistProps) {
     }
   });
   const [input, setInput] = useState("");
+  const [stocks, setStocks] = useState<StockData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     localStorage.setItem("watchlist", JSON.stringify(symbols));
   }, [symbols]);
 
-  const stocks = useMemo(() => symbols.map((s) => generateStockData(s)), [symbols]);
+  useEffect(() => {
+    if (symbols.length === 0) {
+      setStocks([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    fetchRealMarketData(symbols).then((data) => {
+      if (!cancelled) {
+        setStocks(data);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [symbols.join(",")]);
 
   const addSymbol = () => {
     const sym = input.trim().toUpperCase();
@@ -56,7 +74,12 @@ export function Watchlist({ onSelectStock }: WatchlistProps) {
         </button>
       </div>
 
-      {stocks.length === 0 ? (
+      {loading ? (
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2">Loading watchlist...</span>
+        </div>
+      ) : stocks.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">No stocks in watchlist. Add one above!</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

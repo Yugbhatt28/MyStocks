@@ -1,15 +1,40 @@
-import { useMemo } from "react";
-import { TrendingUp, TrendingDown, Zap, DollarSign } from "lucide-react";
+import { useState, useEffect } from "react";
+import { TrendingUp, TrendingDown, Zap, DollarSign, Loader2 } from "lucide-react";
 import type { StockData } from "@/lib/stockData";
-import { generateMarketData, calculateVolatility } from "@/lib/stockData";
+import { calculateVolatility } from "@/lib/stockData";
+import { fetchRealMarketData } from "@/lib/stockApi";
 import { StockChart } from "./StockChart";
+
+const MARKET_SYMBOLS = ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "META", "NVDA", "NFLX", "JPM", "V", "BA", "DIS"];
 
 interface MarketOverviewProps {
   onSelectStock: (symbol: string) => void;
 }
 
 export function MarketOverview({ onSelectStock }: MarketOverviewProps) {
-  const marketData = useMemo(() => generateMarketData(), []);
+  const [marketData, setMarketData] = useState<StockData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchRealMarketData(MARKET_SYMBOLS).then((data) => {
+      if (!cancelled) {
+        setMarketData(data);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-lg">Loading market data...</span>
+      </div>
+    );
+  }
 
   const sorted = [...marketData];
   const topGainers = [...sorted].sort((a, b) => b.changePercent - a.changePercent).slice(0, 4);

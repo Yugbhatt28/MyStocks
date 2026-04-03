@@ -6,35 +6,42 @@ import { MarketOverview } from "./MarketOverview";
 import { CompareStocks } from "./CompareStocks";
 import { Watchlist } from "./Watchlist";
 import { AlertToast, type StockAlert } from "./AlertToast";
-import { generateStockData, addNewPrice, type StockData } from "@/lib/stockData";
+import { type StockData } from "@/lib/stockData";
+import { fetchRealStockData, fetchLiveUpdate } from "@/lib/stockApi";
 
 export function StockApp() {
   const [view, setView] = useState<ViewType>("dashboard");
   const [liveMode, setLiveMode] = useState(false);
   const [stockData, setStockData] = useState<StockData | null>(null);
+  const [loading, setLoading] = useState(false);
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
   const prevDataRef = useRef<StockData | null>(null);
 
-  const handleSearch = useCallback((symbol: string) => {
-    const data = generateStockData(symbol);
-    setStockData(data);
-    prevDataRef.current = data;
-    setView("dashboard");
+  const handleSearch = useCallback(async (symbol: string) => {
+    setLoading(true);
+    try {
+      const data = await fetchRealStockData(symbol);
+      setStockData(data);
+      prevDataRef.current = data;
+      setView("dashboard");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const dismissAlert = useCallback((id: string) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  // Live mode: append new data
+  // Live mode: fetch real data every 5 seconds
   useEffect(() => {
     if (!liveMode || !stockData) return;
 
-    const interval = setInterval(() => {
-      setStockData((prev) => {
-        if (!prev) return prev;
-        const updated = addNewPrice(prev);
-        const oldData = prevDataRef.current;
+    const interval = setInterval(async () => {
+      const oldData = prevDataRef.current;
+      try {
+        const updated = await fetchLiveUpdate(stockData);
+        setStockData(updated);
 
         // Check alerts
         const newAlerts: StockAlert[] = [];
@@ -58,17 +65,17 @@ export function StockApp() {
         }
 
         prevDataRef.current = updated;
-        return updated;
-      });
-    }, 3000);
+      } catch (err) {
+        console.warn("Live update failed:", err);
+      }
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [liveMode, stockData?.symbol]);
 
-  // Mobile bottom nav
   const viewContent = () => {
     switch (view) {
-      case "dashboard": return <DashboardView data={stockData} />;
+      case "dashboard": return <DashboardView data={stockData} loading={loading} />;
       case "market": return <MarketOverview onSelectStock={handleSearch} />;
       case "compare": return <CompareStocks />;
       case "watchlist": return <Watchlist onSelectStock={handleSearch} />;

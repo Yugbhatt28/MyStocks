@@ -1,13 +1,23 @@
-import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import type { StockData } from "@/lib/stockData";
 import { calculateVolatility } from "@/lib/stockData";
 import { StockChart } from "./StockChart";
 
 interface DashboardViewProps {
   data: StockData | null;
+  loading?: boolean;
 }
 
-export function DashboardView({ data }: DashboardViewProps) {
+export function DashboardView({ data, loading }: DashboardViewProps) {
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-lg">Fetching live data...</span>
+      </div>
+    );
+  }
+
   if (!data) {
     return (
       <div className="flex h-96 items-center justify-center text-muted-foreground">
@@ -24,7 +34,6 @@ export function DashboardView({ data }: DashboardViewProps) {
   const volatility = calculateVolatility(data.prices);
   const avg = Math.round((data.prices.reduce((a, b) => a + b, 0) / data.prices.length) * 100) / 100;
 
-  // Trend strength
   const recentPrices = data.prices.slice(-10);
   let trendUp = 0;
   for (let i = 1; i < recentPrices.length; i++) {
@@ -41,6 +50,7 @@ export function DashboardView({ data }: DashboardViewProps) {
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-foreground">{data.name}</h2>
             <span className="rounded bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">{data.symbol}</span>
+            <span className="rounded bg-profit/10 px-2 py-0.5 text-[10px] font-medium text-profit">LIVE</span>
           </div>
           <div className="mt-2 flex items-baseline gap-3">
             <span className="text-3xl font-bold text-foreground">${data.currentPrice.toFixed(2)}</span>
@@ -57,13 +67,11 @@ export function DashboardView({ data }: DashboardViewProps) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Main Chart */}
         <div className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Price Chart</h3>
           <StockChart prices={data.prices} timestamps={data.timestamps} label={data.symbol} />
         </div>
 
-        {/* Quick Stats */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Quick Stats</h3>
           <StatCard label="Day High" value={`$${data.dayHigh.toFixed(2)}`} icon={<ArrowUp className="h-4 w-4 text-profit" />} />
