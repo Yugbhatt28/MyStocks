@@ -1,5 +1,12 @@
 import { fetchStockQuote, fetchMultipleQuotes, type FinnhubQuote } from "./finnhub.functions";
-import { generateStockData, addNewPrice, type StockData } from "./stockData";
+import {
+  generateStockData,
+  addNewPrice,
+  calculateStockSpan,
+  calculateNextGreaterElement,
+  calculateMaxProfit,
+  type StockData,
+} from "./stockData";
 
 /**
  * Fetch a real quote from Finnhub and convert it into our StockData format.
@@ -36,7 +43,6 @@ export async function fetchRealMarketData(symbols: string[]): Promise<StockData[
 
     return quotes.map((q) => quoteToStockData(q));
   } catch {
-    // Fallback to mock data
     return symbols.map((s) => generateStockData(s));
   }
 }
@@ -49,11 +55,9 @@ export async function fetchLiveUpdate(existingData: StockData): Promise<StockDat
     const { quote, error } = await fetchStockQuote({ data: { symbol: existingData.symbol } });
 
     if (error || !quote) {
-      // Fallback: simulate a new price point
       return addNewPrice(existingData);
     }
 
-    // Append the real price to existing price history
     const newPrice = quote.currentPrice;
     const prices = [...existingData.prices, newPrice].slice(-100);
     const timestamps = [
@@ -66,9 +70,6 @@ export async function fetchLiveUpdate(existingData: StockData): Promise<StockDat
     const change = Math.round((currentPrice - previousClose) * 100) / 100;
     const changePercent = Math.round((change / previousClose) * 10000) / 100;
 
-    // Recalculate DSA analytics
-    const { calculateStockSpan, calculateNextGreaterElement, calculateMaxProfit } = await import("./stockData");
-
     return {
       ...existingData,
       currentPrice,
@@ -76,7 +77,7 @@ export async function fetchLiveUpdate(existingData: StockData): Promise<StockDat
       change,
       changePercent,
       dayHigh: Math.max(quote.dayHigh, ...prices),
-      dayLow: Math.min(quote.dayLow, ...prices.filter(p => p > 0)),
+      dayLow: Math.min(quote.dayLow, ...prices.filter((p) => p > 0)),
       lastUpdated: new Date().toLocaleTimeString(),
       prices,
       timestamps,
@@ -94,7 +95,6 @@ export async function fetchLiveUpdate(existingData: StockData): Promise<StockDat
 }
 
 function quoteToStockData(quote: FinnhubQuote, existingData?: StockData): StockData {
-  // If we have existing prices, append the new one; otherwise create initial array
   let prices: number[];
   let timestamps: string[];
 
@@ -105,17 +105,15 @@ function quoteToStockData(quote: FinnhubQuote, existingData?: StockData): StockD
       new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
     ].slice(-100);
   } else {
-    // Create initial price points from the available data
     const spread = quote.dayHigh - quote.dayLow;
     prices = [];
     for (let i = 0; i < 20; i++) {
       const t = i / 19;
-      // Interpolate from open to current with some noise
       const base = quote.openPrice + (quote.currentPrice - quote.openPrice) * t;
       const noise = (Math.random() - 0.5) * spread * 0.3;
       prices.push(Math.round((base + noise) * 100) / 100);
     }
-    prices.push(quote.currentPrice); // Ensure last price is current
+    prices.push(quote.currentPrice);
 
     const now = Date.now();
     timestamps = prices.map((_, i) => {
@@ -123,9 +121,6 @@ function quoteToStockData(quote: FinnhubQuote, existingData?: StockData): StockD
       return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
     });
   }
-
-  // Import DSA functions inline to avoid circular deps
-  const { calculateStockSpan, calculateNextGreaterElement, calculateMaxProfit } = require("./stockData");
 
   return {
     symbol: quote.symbol,
