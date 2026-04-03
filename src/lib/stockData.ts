@@ -2,6 +2,7 @@
 export interface StockData {
   symbol: string;
   name: string;
+  logo: string;
   currentPrice: number;
   previousClose: number;
   change: number;
