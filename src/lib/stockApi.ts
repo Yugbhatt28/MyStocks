@@ -1,6 +1,5 @@
-import { fetchStockQuote, fetchMultipleQuotes, type FinnhubQuote } from "./finnhub.functions";
+import { fetchStockQuote, fetchMultipleQuotes, searchSymbols, type FinnhubQuote, type SymbolSearchResult } from "./finnhub.functions";
 import {
-  generateStockData,
   addNewPrice,
   calculateStockSpan,
   calculateNextGreaterElement,
@@ -10,40 +9,50 @@ import {
 
 /**
  * Fetch a real quote from Finnhub and convert it into our StockData format.
- * Falls back to mock data if the API call fails.
+ * Returns null with an error message if API call fails.
  */
-export async function fetchRealStockData(symbol: string, existingData?: StockData): Promise<StockData> {
+export async function fetchRealStockData(symbol: string, existingData?: StockData): Promise<{ data: StockData | null; error: string | null }> {
   const upperSymbol = symbol.toUpperCase();
 
   try {
     const { quote, error } = await fetchStockQuote({ data: { symbol: upperSymbol } });
 
     if (error || !quote) {
-      console.warn(`Finnhub error for ${upperSymbol}: ${error}. Using mock data.`);
-      return generateStockData(upperSymbol);
+      return { data: null, error: error || `No data for ${upperSymbol}` };
     }
 
-    return quoteToStockData(quote, existingData);
+    return { data: quoteToStockData(quote, existingData), error: null };
   } catch (err) {
-    console.warn(`Failed to fetch ${upperSymbol}:`, err);
-    return generateStockData(upperSymbol);
+    return { data: null, error: `Failed to fetch ${upperSymbol}: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
 /**
  * Fetch multiple real quotes for market overview.
+ * Only returns stocks that have real data.
  */
-export async function fetchRealMarketData(symbols: string[]): Promise<StockData[]> {
+export async function fetchRealMarketData(symbols: string[]): Promise<{ stocks: StockData[]; errors: string[] }> {
   try {
     const { quotes, errors } = await fetchMultipleQuotes({ data: { symbols } });
+    return { stocks: quotes.map((q) => quoteToStockData(q)), errors };
+  } catch (err) {
+    return { stocks: [], errors: [`Market data fetch failed: ${err instanceof Error ? err.message : String(err)}`] };
+  }
+}
 
-    if (errors.length > 0) {
-      console.warn("Some quotes failed:", errors);
+/**
+ * Search for stock symbols by company name or ticker.
+ */
+export async function searchStockSymbols(query: string): Promise<SymbolSearchResult[]> {
+  try {
+    const { results, error } = await searchSymbols({ data: { query } });
+    if (error) {
+      console.warn("Symbol search error:", error);
+      return [];
     }
-
-    return quotes.map((q) => quoteToStockData(q));
+    return results;
   } catch {
-    return symbols.map((s) => generateStockData(s));
+    return [];
   }
 }
 
@@ -145,4 +154,4 @@ function quoteToStockData(quote: FinnhubQuote, existingData?: StockData): StockD
   };
 }
 
-export type { FinnhubQuote };
+export type { FinnhubQuote, SymbolSearchResult };
