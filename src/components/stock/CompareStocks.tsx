@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import { Plus, X, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { calculateVolatility, type StockData } from "@/lib/stockData";
 import { fetchRealStockData } from "@/lib/stockApi";
 import { MultiChart } from "./MultiChart";
+import { SmartSearchInput } from "./SmartSearchInput";
 
 export function CompareStocks() {
   const [symbols, setSymbols] = useState<string[]>(["AAPL", "GOOGL"]);
-  const [input, setInput] = useState("");
   const [stocks, setStocks] = useState<StockData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch stock data whenever symbols change
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -23,11 +22,10 @@ export function CompareStocks() {
     return () => { cancelled = true; };
   }, [symbols.join(",")]);
 
-  const addSymbol = () => {
-    const sym = input.trim().toUpperCase();
+  const addSymbol = (symbol: string) => {
+    const sym = symbol.toUpperCase();
     if (sym && !symbols.includes(sym) && symbols.length < 5) {
       setSymbols([...symbols, sym]);
-      setInput("");
     }
   };
 
@@ -44,18 +42,12 @@ export function CompareStocks() {
             <button onClick={() => removeSymbol(s)} className="ml-1 hover:text-loss"><X className="h-3 w-3" /></button>
           </span>
         ))}
-        <div className="flex items-center gap-1">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addSymbol()}
-            placeholder="Add symbol..."
-            className="h-7 w-28 rounded-md border border-border bg-input px-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          />
-          <button onClick={addSymbol} className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        <SmartSearchInput
+          onSelect={addSymbol}
+          placeholder="Add stock..."
+          compact
+          inputClassName="w-40"
+        />
       </div>
 
       {loading ? (
@@ -74,7 +66,10 @@ export function CompareStocks() {
             {stocks.map((s) => (
               <div key={s.symbol} className="rounded-lg border border-border bg-card p-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-foreground">{s.symbol}</span>
+                  <div className="flex items-center gap-2">
+                    {s.logo && <img src={s.logo} alt={s.name} className="h-6 w-6 rounded-full object-contain" />}
+                    <span className="font-bold text-foreground">{s.symbol}</span>
+                  </div>
                   <span className={`text-xs font-semibold ${s.changePercent >= 0 ? "text-profit" : "text-loss"}`}>
                     {s.changePercent >= 0 ? "+" : ""}{s.changePercent.toFixed(2)}%
                   </span>
