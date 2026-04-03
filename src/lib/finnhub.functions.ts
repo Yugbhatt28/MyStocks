@@ -42,23 +42,30 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
     }
 
     try {
-      const res = await fetch(
-        `https://finnhub.io/api/v1/quote?symbol=${data.symbol}&token=${apiKey}`
-      );
-      if (!res.ok) {
-        return { quote: null, error: `Finnhub API error: ${res.status}` };
-      }
-      const q = await res.json();
+      const [quoteRes, profileRes] = await Promise.all([
+        fetch(`https://finnhub.io/api/v1/quote?symbol=${data.symbol}&token=${apiKey}`),
+        fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${data.symbol}&token=${apiKey}`),
+      ]);
 
-      // Finnhub returns { c, d, dp, h, l, o, pc, t } where c=current, d=change, dp=change%, h=high, l=low, o=open, pc=prev close, t=timestamp
+      if (!quoteRes.ok) {
+        return { quote: null, error: `Finnhub API error: ${quoteRes.status}` };
+      }
+      const q = await quoteRes.json();
+
       if (!q.c || q.c === 0) {
         return { quote: null, error: `No data found for symbol ${data.symbol}` };
+      }
+
+      let name = data.symbol;
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        if (profile.name) name = profile.name;
       }
 
       return {
         quote: {
           symbol: data.symbol,
-          name: STOCK_NAMES[data.symbol] || `${data.symbol}`,
+          name,
           currentPrice: q.c,
           previousClose: q.pc,
           change: q.d,
