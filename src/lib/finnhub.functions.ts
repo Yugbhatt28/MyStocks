@@ -58,9 +58,11 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
       }
 
       let name = data.symbol;
+      let logo = "";
       if (profileRes.ok) {
         const profile = await profileRes.json();
         if (profile.name) name = profile.name;
+        if (profile.logo) logo = profile.logo;
       }
 
       return {
