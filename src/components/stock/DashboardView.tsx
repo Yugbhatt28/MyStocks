@@ -48,6 +48,7 @@ export function DashboardView({ data, loading }: DashboardViewProps) {
       <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
+            {data.logo && <img src={data.logo} alt={data.name} className="h-8 w-8 rounded-full object-contain" />}
             <h2 className="text-2xl font-bold text-foreground">{data.name}</h2>
             <span className="rounded bg-primary/20 px-2 py-0.5 text-xs font-semibold text-primary">{data.symbol}</span>
             <span className="rounded bg-profit/10 px-2 py-0.5 text-[10px] font-medium text-profit">LIVE</span>
