@@ -124,6 +124,7 @@ export function generateStockData(symbol: string, existingPrices?: number[]): St
   return {
     symbol: symbol.toUpperCase(),
     name: STOCK_NAMES[symbol.toUpperCase()] || `${symbol.toUpperCase()} Corp.`,
+    logo: "",
     currentPrice,
     previousClose,
     change,
