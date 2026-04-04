@@ -160,7 +160,14 @@ export const searchSymbols = createServerFn({ method: "POST" })
       }
       const json = await res.json();
       const results: SymbolSearchResult[] = (json.result || [])
-        .filter((r: any) => r.type === "Common Stock")
+        .filter((r: any) => {
+          if (r.type !== "Common Stock") return false;
+          // Filter to US stocks only — Finnhub free tier only supports US exchanges.
+          // Non-US symbols contain dots (e.g. TCS.NS, TC.TO, TC.BK)
+          const sym: string = r.symbol || "";
+          if (sym.includes(".")) return false;
+          return true;
+        })
         .slice(0, 10)
         .map((r: any) => ({
           symbol: r.symbol,
