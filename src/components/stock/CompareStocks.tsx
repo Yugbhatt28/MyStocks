@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
-import { calculateVolatility, type StockData } from "@/lib/stockData";
+import { type StockData } from "@/lib/stockData";
 import { fetchRealStockData } from "@/lib/stockApi";
 import { MultiChart } from "./MultiChart";
 import { SmartSearchInput } from "./SmartSearchInput";

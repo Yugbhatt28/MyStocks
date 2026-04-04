@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Zap, DollarSign, Loader2 } from "lucide-react";
 import type { StockData } from "@/lib/stockData";
-import { calculateVolatility } from "@/lib/stockData";
 import { fetchRealMarketData } from "@/lib/stockApi";
 import { StockChart } from "./StockChart";
 
