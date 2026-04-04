@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
-import { calculateVolatility, type StockData } from "@/lib/stockData";
+import { type StockData } from "@/lib/stockData";
 import { fetchRealStockData } from "@/lib/stockApi";
 import { MultiChart } from "./MultiChart";
 import { SmartSearchInput } from "./SmartSearchInput";
@@ -77,7 +77,7 @@ export function CompareStocks() {
                 <p className="mt-1 text-lg font-bold text-foreground">${s.currentPrice.toFixed(2)}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Max Profit: </span><span className="font-semibold text-primary">${s.dsaAnalytics.maxProfit.toFixed(2)}</span></div>
-                  <div><span className="text-muted-foreground">Volatility: </span><span className="font-semibold text-chart-4">${calculateVolatility(s.prices).toFixed(2)}</span></div>
+                  <div><span className="text-muted-foreground">Range: </span><span className="font-semibold text-chart-4">${(s.dayHigh - s.dayLow).toFixed(2)}</span></div>
                 </div>
               </div>
             ))}

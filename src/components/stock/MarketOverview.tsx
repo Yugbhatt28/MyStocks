@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Zap, DollarSign, Loader2 } from "lucide-react";
 import type { StockData } from "@/lib/stockData";
-import { calculateVolatility } from "@/lib/stockData";
 import { fetchRealMarketData } from "@/lib/stockApi";
 import { StockChart } from "./StockChart";
 
@@ -40,7 +39,7 @@ export function MarketOverview({ onSelectStock }: MarketOverviewProps) {
   const sorted = [...marketData];
   const topGainers = [...sorted].sort((a, b) => b.changePercent - a.changePercent).slice(0, 4);
   const topLosers = [...sorted].sort((a, b) => a.changePercent - b.changePercent).slice(0, 4);
-  const mostVolatile = [...sorted].sort((a, b) => calculateVolatility(b.prices) - calculateVolatility(a.prices)).slice(0, 4);
+  const mostVolatile = [...sorted].sort((a, b) => (b.dayHigh - b.dayLow) - (a.dayHigh - a.dayLow)).slice(0, 4);
   const mostProfitable = [...sorted].sort((a, b) => b.dsaAnalytics.maxProfit - a.dsaAnalytics.maxProfit).slice(0, 4);
 
   return (

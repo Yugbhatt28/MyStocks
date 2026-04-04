@@ -23,12 +23,16 @@ export function StockApp() {
     try {
       const { data, error } = await fetchRealStockData(symbol);
       if (error || !data) {
-        toast.error(error || `No data found for ${symbol}`);
+        toast.error(error || `Data not available for ${symbol}`);
         return;
       }
       setStockData(data);
       prevDataRef.current = data;
       setView("dashboard");
+      // Auto-enable live mode when data loads successfully
+      setLiveMode(true);
+    } catch {
+      toast.error(`Failed to fetch data for ${symbol}`);
     } finally {
       setLoading(false);
     }
@@ -38,6 +42,7 @@ export function StockApp() {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
+  // Live polling — only when liveMode is ON
   useEffect(() => {
     if (!liveMode || !stockData) return;
 
@@ -54,12 +59,6 @@ export function StockApp() {
             newAlerts.push({ id: crypto.randomUUID(), type: "surge", message: `${updated.symbol} surged ${pctChange.toFixed(1)}%!`, timestamp: Date.now() });
           } else if (pctChange < -3) {
             newAlerts.push({ id: crypto.randomUUID(), type: "drop", message: `${updated.symbol} dropped ${Math.abs(pctChange).toFixed(1)}%!`, timestamp: Date.now() });
-          }
-          if (updated.currentPrice > oldData.dsaAnalytics.maxPrice) {
-            newAlerts.push({ id: crypto.randomUUID(), type: "new_max", message: `New high for ${updated.symbol}: $${updated.currentPrice.toFixed(2)}`, timestamp: Date.now() });
-          }
-          if (updated.currentPrice < oldData.dsaAnalytics.minPrice) {
-            newAlerts.push({ id: crypto.randomUUID(), type: "new_min", message: `New low for ${updated.symbol}: $${updated.currentPrice.toFixed(2)}`, timestamp: Date.now() });
           }
         }
 
@@ -78,7 +77,7 @@ export function StockApp() {
 
   const viewContent = () => {
     switch (view) {
-      case "dashboard": return <DashboardView data={stockData} loading={loading} />;
+      case "dashboard": return <DashboardView data={stockData} loading={loading} liveMode={liveMode} />;
       case "market": return <MarketOverview onSelectStock={handleSearch} />;
       case "compare": return <CompareStocks />;
       case "watchlist": return <Watchlist onSelectStock={handleSearch} />;
