@@ -40,8 +40,6 @@ export function CompareStocks() {
     };
     computeAll();
   }, [stocks]);
-  }, [symbols.join(",")]);
-
   const addSymbol = (symbol: string) => {
     const sym = symbol.toUpperCase();
     if (sym && !symbols.includes(sym) && symbols.length < 5) {
