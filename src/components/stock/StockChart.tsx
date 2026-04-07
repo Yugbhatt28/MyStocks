@@ -32,18 +32,26 @@ export function StockChart({
   height = 320,
   showArea = true,
   mini = false,
+  buyIndex,
+  sellIndex,
 }: StockChartProps) {
   const chartRef = useRef<ChartJS<"line"> | null>(null);
 
   const maxIdx = prices.indexOf(Math.max(...prices));
   const minIdx = prices.indexOf(Math.min(...prices));
 
-  const pointBg = prices.map((_, i) =>
-    i === maxIdx ? "#22c55e" : i === minIdx ? "#ef4444" : "transparent"
-  );
-  const pointRadius = prices.map((_, i) =>
-    i === maxIdx || i === minIdx ? (mini ? 3 : 5) : 0
-  );
+  const pointBg = prices.map((_, i) => {
+    if (buyIndex !== undefined && i === buyIndex) return "#22c55e";
+    if (sellIndex !== undefined && i === sellIndex) return "#ef4444";
+    if (i === maxIdx) return "#22c55e";
+    if (i === minIdx) return "#ef4444";
+    return "transparent";
+  });
+  const pointRadius = prices.map((_, i) => {
+    if ((buyIndex !== undefined && i === buyIndex) || (sellIndex !== undefined && i === sellIndex)) return mini ? 4 : 6;
+    if (i === maxIdx || i === minIdx) return mini ? 3 : 5;
+    return 0;
+  });
 
   useEffect(() => {
     const chart = chartRef.current;
