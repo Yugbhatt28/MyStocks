@@ -1,25 +1,28 @@
 import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown, Loader2, Activity, Pause } from "lucide-react";
-import type { StockData } from "@/lib/stockData";
-import { getVolatility } from "@/lib/stockApi";
+import type { StockData, CustomAlert } from "@/lib/stockData";
 import { StockChart } from "./StockChart";
-import { useState, useEffect } from "react";
+import { StrategySimulator } from "./StrategySimulator";
+import { SlidingWindowCards } from "./SlidingWindowCards";
+import { EventTimeline } from "./EventTimeline";
+import { AdvancedAlerts } from "./AdvancedAlerts";
+import { TimeframeFilter } from "./TimeframeFilter";
+import { DSAVisualizer } from "./DSAVisualizer";
+import { useState } from "react";
 
 interface DashboardViewProps {
   data: StockData | null;
   loading?: boolean;
   liveMode?: boolean;
+  previousData?: StockData | null;
+  volatility?: number;
+  customAlerts?: CustomAlert[];
+  onAddAlert?: (alert: CustomAlert) => void;
+  onRemoveAlert?: (id: string) => void;
 }
 
-export function DashboardView({ data, loading, liveMode }: DashboardViewProps) {
-  const [volatility, setVolatility] = useState(0);
-
-  useEffect(() => {
-    if (data && data.prices.length >= 2) {
-      getVolatility(data.prices).then(setVolatility);
-    } else {
-      setVolatility(0);
-    }
-  }, [data?.prices]);
+export function DashboardView({ data, loading, liveMode, previousData, volatility = 0, customAlerts = [], onAddAlert, onRemoveAlert }: DashboardViewProps) {
+  const [filteredPrices, setFilteredPrices] = useState<number[] | null>(null);
+  const [filteredTimestamps, setFilteredTimestamps] = useState<string[] | null>(null);
 
   if (loading) {
     return (
@@ -55,6 +58,9 @@ export function DashboardView({ data, loading, liveMode }: DashboardViewProps) {
   const trendCount = Math.max(recentPrices.length - 1, 1);
   const trendStrength = trendUp >= trendCount * 0.66 ? "Strong Up" : trendUp >= trendCount * 0.44 ? "Mild Up" : trendUp <= trendCount * 0.22 ? "Strong Down" : "Mild Down";
   const trendIsUp = trendUp >= trendCount * 0.5;
+
+  const chartPrices = filteredPrices || data.prices;
+  const chartTimestamps = filteredTimestamps || data.timestamps;
 
   return (
     <div className="space-y-4">
@@ -94,8 +100,11 @@ export function DashboardView({ data, loading, liveMode }: DashboardViewProps) {
       <div className="grid gap-4 lg:grid-cols-3">
         {data.prices.length >= 3 && (
           <div className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Price Chart</h3>
-            <StockChart prices={data.prices} timestamps={data.timestamps} label={data.symbol} />
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Price Chart</h3>
+              <TimeframeFilter data={data} onFilteredData={(p, t) => { setFilteredPrices(p); setFilteredTimestamps(t); }} />
+            </div>
+            <StockChart prices={chartPrices} timestamps={chartTimestamps} label={data.symbol} />
           </div>
         )}
 
@@ -115,6 +124,9 @@ export function DashboardView({ data, loading, liveMode }: DashboardViewProps) {
         </div>
       </div>
 
+      {/* Sliding Window Analytics (C++ Deque) */}
+      <SlidingWindowCards data={data} />
+
       {/* DSA Analytics (C++ WASM) */}
       <div>
         <h3 className="mb-1 text-sm font-semibold text-muted-foreground uppercase tracking-wider">DSA Analytics</h3>
@@ -127,6 +139,31 @@ export function DashboardView({ data, loading, liveMode }: DashboardViewProps) {
           <DSACard label="NGE Coverage" value={`${Math.round((data.dsaAnalytics.nextGreaterElement.filter((v) => v !== null).length / data.dsaAnalytics.nextGreaterElement.length) * 100)}%`} algo="STACK" colorClass="text-chart-5" />
         </div>
       </div>
+
+      {/* Strategy Simulator */}
+      <StrategySimulator data={data} />
+
+      {/* Event Timeline & Custom Alerts side by side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <EventTimeline data={data} previousData={previousData || null} />
+        {onAddAlert && onRemoveAlert && (
+          <AdvancedAlerts
+            symbol={data.symbol}
+            currentPrice={data.currentPrice}
+            volatility={volatility}
+            alerts={customAlerts}
+            onAddAlert={onAddAlert}
+            onRemoveAlert={onRemoveAlert}
+          />
+        )}
+      </div>
+
+      {/* DSA Visualization */}
+      <DSAVisualizer
+        stockSpan={data.dsaAnalytics.stockSpan}
+        nextGreaterElement={data.dsaAnalytics.nextGreaterElement}
+        prices={data.prices}
+      />
 
       {/* Data Table */}
       {data.prices.length > 1 && (
