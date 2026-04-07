@@ -20,6 +20,8 @@ interface StockChartProps {
   height?: number;
   showArea?: boolean;
   mini?: boolean;
+  buyIndex?: number;
+  sellIndex?: number;
 }
 
 export function StockChart({
