@@ -6,8 +6,8 @@ import { MarketOverview } from "./MarketOverview";
 import { CompareStocks } from "./CompareStocks";
 import { Watchlist } from "./Watchlist";
 import { AlertToast, type StockAlert } from "./AlertToast";
-import { type StockData } from "@/lib/stockData";
-import { fetchRealStockData, fetchLiveUpdate } from "@/lib/stockApi";
+import { type StockData, type CustomAlert } from "@/lib/stockData";
+import { fetchRealStockData, fetchLiveUpdate, getVolatility } from "@/lib/stockApi";
 import { toast } from "sonner";
 
 export function StockApp() {
@@ -16,6 +16,8 @@ export function StockApp() {
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(false);
   const [alerts, setAlerts] = useState<StockAlert[]>([]);
+  const [customAlerts, setCustomAlerts] = useState<CustomAlert[]>([]);
+  const [volatility, setVolatility] = useState(0);
   const prevDataRef = useRef<StockData | null>(null);
 
   const handleSearch = useCallback(async (symbol: string) => {
@@ -29,7 +31,6 @@ export function StockApp() {
       setStockData(data);
       prevDataRef.current = data;
       setView("dashboard");
-      // Auto-enable live mode when data loads successfully
       setLiveMode(true);
     } catch {
       toast.error(`Failed to fetch data for ${symbol}`);
@@ -41,6 +42,60 @@ export function StockApp() {
   const dismissAlert = useCallback((id: string) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
+
+  const addCustomAlert = useCallback((alert: CustomAlert) => {
+    setCustomAlerts((prev) => [...prev, alert]);
+  }, []);
+
+  const removeCustomAlert = useCallback((id: string) => {
+    setCustomAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  // Compute volatility when data changes
+  useEffect(() => {
+    if (stockData && stockData.prices.length >= 2) {
+      getVolatility(stockData.prices).then(setVolatility);
+    } else {
+      setVolatility(0);
+    }
+  }, [stockData?.prices]);
+
+  // Check custom alerts
+  useEffect(() => {
+    if (!stockData) return;
+
+    const newAlerts: StockAlert[] = [];
+    for (const ca of customAlerts) {
+      if (!ca.active || ca.symbol !== stockData.symbol) continue;
+
+      if (ca.type === "price_above" && stockData.currentPrice > ca.threshold) {
+        newAlerts.push({
+          id: crypto.randomUUID(),
+          type: "surge",
+          message: `${stockData.symbol} crossed above $${ca.threshold.toFixed(2)}!`,
+          timestamp: Date.now(),
+        });
+      } else if (ca.type === "price_below" && stockData.currentPrice < ca.threshold) {
+        newAlerts.push({
+          id: crypto.randomUUID(),
+          type: "drop",
+          message: `${stockData.symbol} dropped below $${ca.threshold.toFixed(2)}!`,
+          timestamp: Date.now(),
+        });
+      } else if (ca.type === "volatility_spike" && volatility > ca.threshold) {
+        newAlerts.push({
+          id: crypto.randomUUID(),
+          type: "surge",
+          message: `${stockData.symbol} volatility spike: $${volatility.toFixed(2)}`,
+          timestamp: Date.now(),
+        });
+      }
+    }
+
+    if (newAlerts.length > 0) {
+      setAlerts((a) => [...a, ...newAlerts].slice(-5));
+    }
+  }, [stockData?.currentPrice, volatility]);
 
   // Live polling — only when liveMode is ON
   useEffect(() => {
@@ -77,7 +132,19 @@ export function StockApp() {
 
   const viewContent = () => {
     switch (view) {
-      case "dashboard": return <DashboardView data={stockData} loading={loading} liveMode={liveMode} />;
+      case "dashboard":
+        return (
+          <DashboardView
+            data={stockData}
+            loading={loading}
+            liveMode={liveMode}
+            previousData={prevDataRef.current}
+            volatility={volatility}
+            customAlerts={customAlerts}
+            onAddAlert={addCustomAlert}
+            onRemoveAlert={removeCustomAlert}
+          />
+        );
       case "market": return <MarketOverview onSelectStock={handleSearch} />;
       case "compare": return <CompareStocks />;
       case "watchlist": return <Watchlist onSelectStock={handleSearch} />;
