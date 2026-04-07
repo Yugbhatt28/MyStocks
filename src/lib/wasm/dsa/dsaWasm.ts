@@ -1,101 +1,89 @@
 /**
- * C++ WASM-powered DSA algorithms for stock analytics.
- * Functions: maxProfit (Greedy), stockSpan (Stack), nextGreaterElement (Stack), volatility (Stats).
+ * TypeScript wrapper for the C++ WASM DSA engine.
+ * Provides: maxProfit, stockSpan, nextGreaterElement, volatility.
  */
 
 import createModule from "./dsa.js";
 
-let moduleInstance: any = null;
-let initPromise: Promise<void> | null = null;
+const MAX_POINTS = 200;
+
+let wasm: any = null;
+let loading: Promise<void> | null = null;
 
 async function ensureLoaded() {
-  if (moduleInstance) return;
-  if (!initPromise) {
-    initPromise = createModule().then((m: any) => {
-      moduleInstance = m;
-    });
+  if (wasm) return;
+  if (!loading) {
+    loading = createModule().then((m: any) => { wasm = m; });
   }
-  await initPromise;
+  await loading;
 }
 
-function allocateDoubleArray(prices: number[]): { ptr: number; n: number } {
-  const n = Math.min(prices.length, 200);
-  const ptr = moduleInstance._malloc(n * 8); // 8 bytes per double
-  for (let i = 0; i < n; i++) {
-    moduleInstance.HEAPF64[(ptr >> 3) + i] = prices[i];
+/** Copy a JS number[] into WASM heap, returning pointer and clamped length. */
+function toHeap(prices: number[]): { ptr: number; len: number } {
+  const len = Math.min(prices.length, MAX_POINTS);
+  const ptr = wasm._malloc(len * 8);
+  for (let i = 0; i < len; i++) {
+    wasm.HEAPF64[(ptr >> 3) + i] = prices[i];
   }
-  return { ptr, n };
+  return { ptr, len };
+}
+
+/** Read `len` doubles from a WASM buffer pointer. */
+function readBuffer(bufPtr: number, len: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < len; i++) {
+    out.push(wasm.HEAPF64[(bufPtr >> 3) + i]);
+  }
+  return out;
 }
 
 export async function wasmMaxProfit(prices: number[]): Promise<number> {
   await ensureLoaded();
-  const { ptr, n } = allocateDoubleArray(prices);
-  const result = moduleInstance._calculateMaxProfit(ptr, n);
-  moduleInstance._free(ptr);
+  const { ptr, len } = toHeap(prices);
+  const result = wasm._calculateMaxProfit(ptr, len);
+  wasm._free(ptr);
   return result;
 }
 
 export async function wasmStockSpan(prices: number[]): Promise<number[]> {
   await ensureLoaded();
-  const { ptr, n } = allocateDoubleArray(prices);
-  moduleInstance._calculateStockSpan(ptr, n);
-  moduleInstance._free(ptr);
-
-  const bufPtr = moduleInstance._getSpanBuffer();
-  const span: number[] = [];
-  for (let i = 0; i < n; i++) {
-    span.push(moduleInstance.HEAPF64[(bufPtr >> 3) + i]);
-  }
-  return span;
+  const { ptr, len } = toHeap(prices);
+  wasm._calculateStockSpan(ptr, len);
+  wasm._free(ptr);
+  return readBuffer(wasm._getSpanBuffer(), len);
 }
 
 export async function wasmNextGreaterElement(prices: number[]): Promise<(number | null)[]> {
   await ensureLoaded();
-  const { ptr, n } = allocateDoubleArray(prices);
-  moduleInstance._calculateNextGreaterElement(ptr, n);
-  moduleInstance._free(ptr);
-
-  const bufPtr = moduleInstance._getNgeBuffer();
-  const nge: (number | null)[] = [];
-  for (let i = 0; i < n; i++) {
-    const val = moduleInstance.HEAPF64[(bufPtr >> 3) + i];
-    nge.push(val === -1.0 ? null : val);
-  }
-  return nge;
+  const { ptr, len } = toHeap(prices);
+  wasm._calculateNextGreaterElement(ptr, len);
+  wasm._free(ptr);
+  return readBuffer(wasm._getNgeBuffer(), len).map(v => v === -1.0 ? null : v);
 }
 
 export async function wasmVolatility(prices: number[]): Promise<number> {
   await ensureLoaded();
-  const { ptr, n } = allocateDoubleArray(prices);
-  const result = moduleInstance._calculateVolatility(ptr, n);
-  moduleInstance._free(ptr);
+  const { ptr, len } = toHeap(prices);
+  const result = wasm._calculateVolatility(ptr, len);
+  wasm._free(ptr);
   return result;
 }
 
-/**
- * Compute all DSA analytics at once using C++ WASM.
- */
+/** Compute all DSA analytics in one batch (single heap allocation). */
 export async function computeDSAAnalytics(prices: number[]) {
   await ensureLoaded();
-  const { ptr, n } = allocateDoubleArray(prices);
+  const { ptr, len } = toHeap(prices);
 
-  const maxProfit = moduleInstance._calculateMaxProfit(ptr, n);
-  moduleInstance._calculateStockSpan(ptr, n);
-  const spanBuf = moduleInstance._getSpanBuffer();
-  const stockSpan: number[] = [];
-  for (let i = 0; i < n; i++) {
-    stockSpan.push(moduleInstance.HEAPF64[(spanBuf >> 3) + i]);
-  }
+  const maxProfit = wasm._calculateMaxProfit(ptr, len);
 
-  moduleInstance._calculateNextGreaterElement(ptr, n);
-  const ngeBuf = moduleInstance._getNgeBuffer();
-  const nextGreaterElement: (number | null)[] = [];
-  for (let i = 0; i < n; i++) {
-    const val = moduleInstance.HEAPF64[(ngeBuf >> 3) + i];
-    nextGreaterElement.push(val === -1.0 ? null : val);
-  }
+  wasm._calculateStockSpan(ptr, len);
+  const stockSpan = readBuffer(wasm._getSpanBuffer(), len);
 
-  moduleInstance._free(ptr);
+  wasm._calculateNextGreaterElement(ptr, len);
+  const nextGreaterElement = readBuffer(wasm._getNgeBuffer(), len)
+    .map(v => v === -1.0 ? null : v);
+
+  wasm._free(ptr);
 
   return {
     maxPrice: Math.max(...prices),
