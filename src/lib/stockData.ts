@@ -24,3 +24,18 @@ export interface DSAAnalytics {
   stockSpan: number[];
   nextGreaterElement: (number | null)[];
 }
+
+export interface TimelineEvent {
+  id: string;
+  type: "spike" | "drop" | "new_max" | "new_min" | "reversal" | "volatility_spike";
+  message: string;
+  timestamp: number;
+}
+
+export interface CustomAlert {
+  id: string;
+  symbol: string;
+  type: "price_above" | "price_below" | "volatility_spike" | "trend_reversal";
+  threshold: number;
+  active: boolean;
+}
