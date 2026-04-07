@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { type StockData } from "@/lib/stockData";
 import { fetchRealStockData } from "@/lib/stockApi";
+import { wasmComputeCorrelation } from "@/lib/wasm/dsa/dsaWasm";
+import { fetchRealStockData } from "@/lib/stockApi";
 import { MultiChart } from "./MultiChart";
 import { SmartSearchInput } from "./SmartSearchInput";
 
@@ -9,6 +11,7 @@ export function CompareStocks() {
   const [symbols, setSymbols] = useState<string[]>(["AAPL", "GOOGL"]);
   const [stocks, setStocks] = useState<StockData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [correlations, setCorrelations] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -20,6 +23,23 @@ export function CompareStocks() {
       }
     });
     return () => { cancelled = true; };
+  }, [symbols.join(",")]);
+
+  // Compute pairwise correlations using C++ WASM
+  useEffect(() => {
+    if (stocks.length < 2) { setCorrelations({}); return; }
+    const computeAll = async () => {
+      const corr: Record<string, number> = {};
+      for (let i = 0; i < stocks.length; i++) {
+        for (let j = i + 1; j < stocks.length; j++) {
+          const key = `${stocks[i].symbol}-${stocks[j].symbol}`;
+          corr[key] = await wasmComputeCorrelation(stocks[i].prices, stocks[j].prices);
+        }
+      }
+      setCorrelations(corr);
+    };
+    computeAll();
+  }, [stocks]);
   }, [symbols.join(",")]);
 
   const addSymbol = (symbol: string) => {
@@ -82,6 +102,25 @@ export function CompareStocks() {
               </div>
             ))}
           </div>
+
+          {/* Correlation Matrix */}
+          {Object.keys(correlations).length > 0 && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Pearson Correlation (C++ WASM)</h3>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(correlations).map(([key, value]) => {
+                  const [a, b] = key.split("-");
+                  const color = value > 0.5 ? "text-profit" : value < -0.5 ? "text-loss" : "text-chart-4";
+                  return (
+                    <div key={key} className="flex items-center justify-between rounded-md border border-border/50 bg-surface px-3 py-2 text-xs">
+                      <span className="text-muted-foreground">{a} ↔ {b}</span>
+                      <span className={`font-bold font-mono ${color}`}>{value.toFixed(4)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       ) : null}
     </div>
