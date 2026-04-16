@@ -9,6 +9,13 @@ const multiQuoteSchema = z.object({
   symbols: z.array(z.string().min(1).max(10).regex(/^[A-Z0-9.]+$/)).min(1).max(20),
 });
 
+const candleSchema = z.object({
+  symbol: z.string().min(1).max(10).regex(/^[A-Z0-9.]+$/),
+  resolution: z.enum(["1", "5", "15", "30", "60", "D", "W", "M"]).default("D"),
+  fromTimestamp: z.number(),
+  toTimestamp: z.number(),
+});
+
 export interface FinnhubQuote {
   symbol: string;
   name: string;
@@ -21,6 +28,16 @@ export interface FinnhubQuote {
   dayLow: number;
   openPrice: number;
   timestamp: number;
+}
+
+export interface FinnhubCandle {
+  symbol: string;
+  prices: number[];      // close prices
+  opens: number[];
+  highs: number[];
+  lows: number[];
+  volumes: number[];
+  timestamps: number[];  // unix timestamps
 }
 
 const searchSchema = z.object({
@@ -49,6 +66,7 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
       ]);
 
       if (!quoteRes.ok) {
+        if (quoteRes.status === 429) return { quote: null, error: "Rate limit exceeded. Please wait a moment and try again." };
         return { quote: null, error: `Finnhub API error: ${quoteRes.status}` };
       }
       const q = await quoteRes.json();
@@ -86,6 +104,49 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
     }
   });
 
+/**
+ * Fetch historical candle data from Finnhub (up to 1 year of daily data).
+ */
+export const fetchStockCandles = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => candleSchema.parse(input))
+  .handler(async ({ data }): Promise<{ candle: FinnhubCandle | null; error: string | null }> => {
+    const apiKey = process.env.FINNHUB_API_KEY;
+    if (!apiKey) {
+      return { candle: null, error: "FINNHUB_API_KEY is not configured" };
+    }
+
+    try {
+      const url = `https://finnhub.io/api/v1/stock/candle?symbol=${data.symbol}&resolution=${data.resolution}&from=${data.fromTimestamp}&to=${data.toTimestamp}&token=${apiKey}`;
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        if (res.status === 429) return { candle: null, error: "Rate limit exceeded. Please wait and try again." };
+        return { candle: null, error: `Finnhub candle API error: ${res.status}` };
+      }
+
+      const json = await res.json();
+
+      if (json.s === "no_data" || !json.c || json.c.length === 0) {
+        return { candle: null, error: `No historical data available for ${data.symbol}` };
+      }
+
+      return {
+        candle: {
+          symbol: data.symbol,
+          prices: json.c as number[],
+          opens: json.o as number[],
+          highs: json.h as number[],
+          lows: json.l as number[],
+          volumes: json.v as number[],
+          timestamps: json.t as number[],
+        },
+        error: null,
+      };
+    } catch (err) {
+      return { candle: null, error: `Failed to fetch candles: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  });
+
 export const fetchMultipleQuotes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => multiQuoteSchema.parse(input))
   .handler(async ({ data }): Promise<{ quotes: FinnhubQuote[]; errors: string[] }> => {
@@ -103,7 +164,6 @@ export const fetchMultipleQuotes = createServerFn({ method: "POST" })
         const q = await res.json();
         if (!q.c || q.c === 0) throw new Error(`No data for ${symbol}`);
 
-        // Fetch profile for real company name
         let name = symbol;
         let logo = "";
         try {
@@ -162,8 +222,6 @@ export const searchSymbols = createServerFn({ method: "POST" })
       const results: SymbolSearchResult[] = (json.result || [])
         .filter((r: any) => {
           if (r.type !== "Common Stock") return false;
-          // Filter to US stocks only — Finnhub free tier only supports US exchanges.
-          // Non-US symbols contain dots (e.g. TCS.NS, TC.TO, TC.BK)
           const sym: string = r.symbol || "";
           if (sym.includes(".")) return false;
           return true;
