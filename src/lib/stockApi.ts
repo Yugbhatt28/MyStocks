@@ -31,7 +31,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
     if (candleResult.candle && candleResult.candle.prices.length > 0) {
       const candle = candleResult.candle;
       prices = candle.prices; // close prices
-      timestamps = candle.timestamps.map((t) =>
+      timestamps = candle.timestamps.map((t: number) =>
         new Date(t * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       );
       // Append current price if different from last candle
@@ -91,7 +91,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
 export async function fetchRealMarketData(symbols: string[]): Promise<{ stocks: StockData[]; errors: string[] }> {
   try {
     const { quotes, errors } = await fetchMultipleQuotes({ data: { symbols } });
-    const stocks = await Promise.all(quotes.map((q) => quoteToStockData(q)));
+    const stocks = await Promise.all(quotes.map((q: FinnhubQuote) => quoteToStockData(q)));
     return { stocks, errors };
   } catch (err) {
     return { stocks: [], errors: [`Market data fetch failed: ${err instanceof Error ? err.message : String(err)}`] };
