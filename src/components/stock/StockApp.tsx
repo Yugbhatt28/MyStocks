@@ -5,6 +5,7 @@ import { DashboardView } from "./DashboardView";
 import { MarketOverview } from "./MarketOverview";
 import { CompareStocks } from "./CompareStocks";
 import { Watchlist } from "./Watchlist";
+import { HistoricalAnalysis } from "./HistoricalAnalysis";
 import { AlertToast, type StockAlert } from "./AlertToast";
 import { type StockData, type CustomAlert } from "@/lib/stockData";
 import { fetchRealStockData, fetchLiveUpdate, getVolatility } from "@/lib/stockApi";
@@ -51,7 +52,6 @@ export function StockApp() {
     setCustomAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
-  // Compute volatility when data changes
   useEffect(() => {
     if (stockData && stockData.prices.length >= 2) {
       getVolatility(stockData.prices).then(setVolatility);
@@ -60,73 +60,41 @@ export function StockApp() {
     }
   }, [stockData?.prices]);
 
-  // Check custom alerts
   useEffect(() => {
     if (!stockData) return;
-
     const newAlerts: StockAlert[] = [];
     for (const ca of customAlerts) {
       if (!ca.active || ca.symbol !== stockData.symbol) continue;
-
       if (ca.type === "price_above" && stockData.currentPrice > ca.threshold) {
-        newAlerts.push({
-          id: crypto.randomUUID(),
-          type: "surge",
-          message: `${stockData.symbol} crossed above $${ca.threshold.toFixed(2)}!`,
-          timestamp: Date.now(),
-        });
+        newAlerts.push({ id: crypto.randomUUID(), type: "surge", message: `${stockData.symbol} crossed above $${ca.threshold.toFixed(2)}!`, timestamp: Date.now() });
       } else if (ca.type === "price_below" && stockData.currentPrice < ca.threshold) {
-        newAlerts.push({
-          id: crypto.randomUUID(),
-          type: "drop",
-          message: `${stockData.symbol} dropped below $${ca.threshold.toFixed(2)}!`,
-          timestamp: Date.now(),
-        });
+        newAlerts.push({ id: crypto.randomUUID(), type: "drop", message: `${stockData.symbol} dropped below $${ca.threshold.toFixed(2)}!`, timestamp: Date.now() });
       } else if (ca.type === "volatility_spike" && volatility > ca.threshold) {
-        newAlerts.push({
-          id: crypto.randomUUID(),
-          type: "surge",
-          message: `${stockData.symbol} volatility spike: $${volatility.toFixed(2)}`,
-          timestamp: Date.now(),
-        });
+        newAlerts.push({ id: crypto.randomUUID(), type: "surge", message: `${stockData.symbol} volatility spike: $${volatility.toFixed(2)}`, timestamp: Date.now() });
       }
     }
-
-    if (newAlerts.length > 0) {
-      setAlerts((a) => [...a, ...newAlerts].slice(-5));
-    }
+    if (newAlerts.length > 0) setAlerts((a) => [...a, ...newAlerts].slice(-5));
   }, [stockData?.currentPrice, volatility]);
 
-  // Live polling — only when liveMode is ON
   useEffect(() => {
     if (!liveMode || !stockData) return;
-
     const interval = setInterval(async () => {
       const oldData = prevDataRef.current;
       try {
         const updated = await fetchLiveUpdate(stockData);
         setStockData(updated);
-
         const newAlerts: StockAlert[] = [];
         if (oldData) {
           const pctChange = ((updated.currentPrice - oldData.currentPrice) / oldData.currentPrice) * 100;
-          if (pctChange > 3) {
-            newAlerts.push({ id: crypto.randomUUID(), type: "surge", message: `${updated.symbol} surged ${pctChange.toFixed(1)}%!`, timestamp: Date.now() });
-          } else if (pctChange < -3) {
-            newAlerts.push({ id: crypto.randomUUID(), type: "drop", message: `${updated.symbol} dropped ${Math.abs(pctChange).toFixed(1)}%!`, timestamp: Date.now() });
-          }
+          if (pctChange > 3) newAlerts.push({ id: crypto.randomUUID(), type: "surge", message: `${updated.symbol} surged ${pctChange.toFixed(1)}%!`, timestamp: Date.now() });
+          else if (pctChange < -3) newAlerts.push({ id: crypto.randomUUID(), type: "drop", message: `${updated.symbol} dropped ${Math.abs(pctChange).toFixed(1)}%!`, timestamp: Date.now() });
         }
-
-        if (newAlerts.length > 0) {
-          setAlerts((a) => [...a, ...newAlerts].slice(-5));
-        }
-
+        if (newAlerts.length > 0) setAlerts((a) => [...a, ...newAlerts].slice(-5));
         prevDataRef.current = updated;
       } catch (err) {
         console.warn("Live update failed:", err);
       }
     }, 5000);
-
     return () => clearInterval(interval);
   }, [liveMode, stockData?.symbol]);
 
@@ -148,6 +116,7 @@ export function StockApp() {
       case "market": return <MarketOverview onSelectStock={handleSearch} />;
       case "compare": return <CompareStocks />;
       case "watchlist": return <Watchlist onSelectStock={handleSearch} />;
+      case "historical": return <HistoricalAnalysis data={stockData} />;
     }
   };
 
@@ -162,7 +131,7 @@ export function StockApp() {
       </div>
 
       <nav className="flex border-t border-border bg-card md:hidden">
-        {(["dashboard", "market", "compare", "watchlist"] as ViewType[]).map((v) => (
+        {(["dashboard", "market", "compare", "watchlist", "historical"] as ViewType[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -170,7 +139,7 @@ export function StockApp() {
               view === v ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            {v === "dashboard" ? "Dashboard" : v === "market" ? "Market" : v === "compare" ? "Compare" : "Watchlist"}
+            {v === "dashboard" ? "Dashboard" : v === "market" ? "Market" : v === "compare" ? "Compare" : v === "watchlist" ? "Watchlist" : "History"}
           </button>
         ))}
       </nav>
