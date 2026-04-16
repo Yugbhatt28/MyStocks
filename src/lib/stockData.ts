@@ -1,5 +1,11 @@
 // Types only — all DSA computation is done via C++ WASM (src/lib/wasm/dsa/)
 
+export interface HeapProfitInfo {
+  buyIndex: number;
+  sellIndex: number;
+  profit: number;
+}
+
 export interface StockData {
   symbol: string;
   name: string;
@@ -23,6 +29,7 @@ export interface DSAAnalytics {
   maxProfit: number;
   stockSpan: number[];
   nextGreaterElement: (number | null)[];
+  heapProfit: HeapProfitInfo;
 }
 
 export interface TimelineEvent {

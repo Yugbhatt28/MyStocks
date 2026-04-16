@@ -131,11 +131,12 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
       <div>
         <h3 className="mb-1 text-sm font-semibold text-muted-foreground uppercase tracking-wider">DSA Analytics</h3>
         <p className="mb-3 text-[10px] text-muted-foreground">Powered by C++ WebAssembly</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <DSACard label="Max Price" value={`$${data.dsaAnalytics.maxPrice.toFixed(2)}`} algo="HEAP" colorClass="text-profit" />
           <DSACard label="Min Price" value={`$${data.dsaAnalytics.minPrice.toFixed(2)}`} algo="HEAP" colorClass="text-loss" />
-          <DSACard label="Max Profit" value={`$${data.dsaAnalytics.maxProfit.toFixed(2)}`} algo="GREEDY" colorClass="text-primary" />
-          <DSACard label="Avg Span" value={(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} algo="STACK" colorClass="text-chart-4" />
+          <DSACard label="Greedy Profit" value={`$${data.dsaAnalytics.maxProfit.toFixed(2)}`} algo="GREEDY" colorClass="text-primary" />
+          <DSACard label="Heap Profit" value={`$${data.dsaAnalytics.heapProfit.profit.toFixed(2)}`} algo="HEAP" colorClass="text-primary" />
+          <DSACard label="Avg Span" value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} days`} algo="STACK" colorClass="text-chart-4" />
           <DSACard label="NGE Coverage" value={`${Math.round((data.dsaAnalytics.nextGreaterElement.filter((v) => v !== null).length / data.dsaAnalytics.nextGreaterElement.length) * 100)}%`} algo="STACK" colorClass="text-chart-5" />
         </div>
       </div>
@@ -175,20 +176,20 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Price</th>
-                  <th className="px-4 py-2 font-medium">Span</th>
-                  <th className="px-4 py-2 font-medium">Next Greater</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.prices.slice(-20).reverse().map((price, i) => {
-                  const idx = data.prices.length - 1 - i;
-                  return (
-                    <tr key={idx} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                      <td className="px-4 py-2 text-muted-foreground">{data.timestamps[idx]}</td>
-                      <td className="px-4 py-2 font-mono font-medium text-foreground">${price.toFixed(2)}</td>
-                      <td className="px-4 py-2 font-mono text-primary">{data.dsaAnalytics.stockSpan[idx]}</td>
+                  <th className="px-4 py-2 font-medium">Span (days)</th>
+                   <th className="px-4 py-2 font-medium">Next Greater Price</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {data.prices.slice(-20).reverse().map((price, i) => {
+                   const idx = data.prices.length - 1 - i;
+                   return (
+                     <tr key={idx} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
+                       <td className="px-4 py-2 text-muted-foreground">{data.timestamps[idx]}</td>
+                       <td className="px-4 py-2 font-mono font-medium text-foreground">${price.toFixed(2)}</td>
+                       <td className="px-4 py-2 font-mono text-primary">{data.dsaAnalytics.stockSpan[idx] !== undefined ? `${data.dsaAnalytics.stockSpan[idx]} days` : "—"}</td>
                       <td className="px-4 py-2 font-mono text-muted-foreground">
-                        {data.dsaAnalytics.nextGreaterElement[idx] != null ? `$${data.dsaAnalytics.nextGreaterElement[idx]!.toFixed(2)}` : "—"}
+                        {data.dsaAnalytics.nextGreaterElement[idx] != null ? `$${(data.dsaAnalytics.nextGreaterElement[idx] as number).toFixed(2)}` : "None"}
                       </td>
                     </tr>
                   );

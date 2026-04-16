@@ -1,12 +1,13 @@
-import { LayoutDashboard, Globe, GitCompareArrows, Star } from "lucide-react";
+import { LayoutDashboard, Globe, GitCompareArrows, Star, History } from "lucide-react";
 
-export type ViewType = "dashboard" | "market" | "compare" | "watchlist";
+export type ViewType = "dashboard" | "market" | "compare" | "watchlist" | "historical";
 
 const NAV_ITEMS: { id: ViewType; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "market", label: "Market Overview", icon: Globe },
   { id: "compare", label: "Compare Stocks", icon: GitCompareArrows },
   { id: "watchlist", label: "Watchlist", icon: Star },
+  { id: "historical", label: "Historical Analysis", icon: History },
 ];
 
 interface SidebarProps {
