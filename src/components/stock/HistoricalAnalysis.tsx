@@ -158,7 +158,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
                 <th className="px-4 py-2 font-medium">#</th>
                 <th className="px-4 py-2 font-medium">Date</th>
                 <th className="px-4 py-2 font-medium">Price</th>
-                <th className="px-4 py-2 font-medium">Span (days)</th>
+                <th className="px-4 py-2 font-medium">Span (5 seconds)</th>
                 <th className="px-4 py-2 font-medium">Next Greater Price</th>
               </tr>
             </thead>
@@ -178,7 +178,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
                     {i === heapProfit.sellIndex && <span className="ml-1 text-[10px] text-loss font-bold">SELL</span>}
                   </td>
                   <td className="px-4 py-2 font-mono text-primary">
-                    {spans[i] !== undefined ? `${spans[i]} days` : "—"}
+                    {spans[i] !== undefined ? `${spans[i]}` : "—"}
                   </td>
                   <td className="px-4 py-2 font-mono text-muted-foreground">
                     {nges[i] != null ? `$${(nges[i] as number).toFixed(2)}` : "None"}
