@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
-import { Database, ArrowUpDown, Filter } from "lucide-react";
+import { Database, ArrowUpDown, Filter, RefreshCw } from "lucide-react";
 import type { StockData } from "@/lib/stockData";
+import { computeDSAAnalytics } from "@/lib/wasm/dsa/dsaWasm";
+import { useEffect } from "react";
 
 interface HistoricalAnalysisProps {
   data: StockData | null;
@@ -8,6 +10,30 @@ interface HistoricalAnalysisProps {
 
 export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
   const [lastN, setLastN] = useState<number>(0); // 0 = full dataset
+  const [slicedAnalytics, setSlicedAnalytics] = useState<StockData["dsaAnalytics"] | null>(null);
+  const [recomputing, setRecomputing] = useState(false);
+
+  // Recompute DSA analytics whenever slicing changes
+  useEffect(() => {
+    if (!data || data.prices.length < 2) { setSlicedAnalytics(null); return; }
+
+    const effectiveN = lastN > 0 ? Math.min(lastN, data.prices.length) : data.prices.length;
+    const startIdx = data.prices.length - effectiveN;
+    const slicedPrices = data.prices.slice(startIdx);
+
+    // If full dataset, use existing analytics
+    if (startIdx === 0) {
+      setSlicedAnalytics(data.dsaAnalytics);
+      return;
+    }
+
+    // Recompute for sliced data
+    setRecomputing(true);
+    computeDSAAnalytics(slicedPrices).then((analytics) => {
+      setSlicedAnalytics(analytics);
+      setRecomputing(false);
+    });
+  }, [data, lastN]);
 
   if (!data || data.prices.length < 2) {
     return (
@@ -23,14 +49,13 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
 
   const effectiveN = lastN > 0 ? Math.min(lastN, data.prices.length) : data.prices.length;
   const startIdx = data.prices.length - effectiveN;
-
-  // Slice analytics to match the selected window
   const prices = data.prices.slice(startIdx);
   const timestamps = data.timestamps.slice(startIdx);
-  const spans = data.dsaAnalytics.stockSpan.slice(startIdx);
-  const nges = data.dsaAnalytics.nextGreaterElement.slice(startIdx);
 
-  const { maxPrice, minPrice, maxProfit, heapProfit } = data.dsaAnalytics;
+  const analytics = slicedAnalytics || data.dsaAnalytics;
+  const spans = analytics.stockSpan;
+  const nges = analytics.nextGreaterElement;
+  const { maxPrice, minPrice, maxProfit, heapProfit } = analytics;
 
   const avgSpan = spans.length > 0
     ? (spans.reduce((a, b) => a + b, 0) / spans.length).toFixed(1)
@@ -47,6 +72,11 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
           <h2 className="text-xl font-bold text-foreground">Historical Analysis</h2>
           <p className="text-sm text-muted-foreground">
             DSA-powered analytics on {data.symbol} — {effectiveN} data points
+            {recomputing && (
+              <span className="ml-2 inline-flex items-center gap-1 text-primary">
+                <RefreshCw className="h-3 w-3 animate-spin" /> Recomputing...
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -56,47 +86,48 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
             onChange={(e) => setLastN(Number(e.target.value))}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
-            <option value={0}>Full Dataset</option>
-            <option value={10}>Last 10</option>
-            <option value={20}>Last 20</option>
-            <option value={50}>Last 50</option>
-            <option value={100}>Last 100</option>
+            <option value={0}>Full Dataset ({data.prices.length})</option>
+            <option value={7}>Last 7 days</option>
+            <option value={14}>Last 14 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={60}>Last 60 days</option>
+            <option value={90}>Last 90 days</option>
           </select>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <SummaryCard label="Max Price" value={`$${maxPrice.toFixed(2)}`} algo="HEAP" />
-        <SummaryCard label="Min Price" value={`$${minPrice.toFixed(2)}`} algo="HEAP" />
-        <SummaryCard label="Greedy Profit" value={`$${maxProfit.toFixed(2)}`} algo="GREEDY" />
+        <SummaryCard label="Max Price" value={`$${maxPrice.toFixed(2)}`} algo="HEAP" detail="Priority queue tracking" />
+        <SummaryCard label="Min Price" value={`$${minPrice.toFixed(2)}`} algo="HEAP" detail="Min-heap extraction" />
+        <SummaryCard label="Greedy Profit" value={`$${maxProfit.toFixed(2)}`} algo="GREEDY" detail="Single-pass O(n)" />
         <SummaryCard label="Heap Profit" value={`$${heapProfit.profit.toFixed(2)}`} algo="HEAP" detail={`Buy #${heapProfit.buyIndex} → Sell #${heapProfit.sellIndex}`} />
-        <SummaryCard label="Avg Span" value={`${avgSpan} days`} algo="STACK" />
+        <SummaryCard label="Avg Span" value={`${avgSpan} days`} algo="STACK" detail="Monotonic stack" />
       </div>
 
       {/* Heap Profit Detail */}
       {heapProfit.profit > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Heap-Based Best Trade
+            Heap-Based Best Trade (Min-Heap tracks cheapest buy)
           </h3>
           <div className="flex flex-wrap gap-6 text-sm">
             <div>
               <span className="text-muted-foreground">Buy at: </span>
               <span className="font-mono font-bold text-profit">
-                ${prices[heapProfit.buyIndex - startIdx]?.toFixed(2) ?? "—"}
+                ${prices[heapProfit.buyIndex]?.toFixed(2) ?? "—"}
               </span>
               <span className="ml-1 text-xs text-muted-foreground">
-                ({timestamps[heapProfit.buyIndex - startIdx] ?? "—"})
+                ({timestamps[heapProfit.buyIndex] ?? "—"})
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Sell at: </span>
               <span className="font-mono font-bold text-loss">
-                ${prices[heapProfit.sellIndex - startIdx]?.toFixed(2) ?? "—"}
+                ${prices[heapProfit.sellIndex]?.toFixed(2) ?? "—"}
               </span>
               <span className="ml-1 text-xs text-muted-foreground">
-                ({timestamps[heapProfit.sellIndex - startIdx] ?? "—"})
+                ({timestamps[heapProfit.sellIndex] ?? "—"})
               </span>
             </div>
             <div>
@@ -104,6 +135,10 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
               <span className="font-mono font-bold text-primary">${heapProfit.profit.toFixed(2)}</span>
             </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Algorithm: For each day, the min-heap provides the lowest price seen so far in O(log n). 
+            Profit = current price − heap.top(). Total: O(n log n) time, O(n) space.
+          </p>
         </div>
       )}
 
@@ -121,7 +156,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
             <thead className="sticky top-0 bg-card">
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2 font-medium">#</th>
-                <th className="px-4 py-2 font-medium">Time</th>
+                <th className="px-4 py-2 font-medium">Date</th>
                 <th className="px-4 py-2 font-medium">Price</th>
                 <th className="px-4 py-2 font-medium">Span (days)</th>
                 <th className="px-4 py-2 font-medium">Next Greater Price</th>
@@ -129,10 +164,19 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
             </thead>
             <tbody>
               {prices.map((price, i) => (
-                <tr key={i} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
-                  <td className="px-4 py-2 text-muted-foreground">{startIdx + i + 1}</td>
+                <tr
+                  key={i}
+                  className={`border-b border-border/50 hover:bg-surface-hover transition-colors ${
+                    i === heapProfit.buyIndex ? "bg-profit/5" : i === heapProfit.sellIndex ? "bg-loss/5" : ""
+                  }`}
+                >
+                  <td className="px-4 py-2 text-muted-foreground">{i + 1}</td>
                   <td className="px-4 py-2 text-muted-foreground">{timestamps[i]}</td>
-                  <td className="px-4 py-2 font-mono font-medium text-foreground">${price.toFixed(2)}</td>
+                  <td className="px-4 py-2 font-mono font-medium text-foreground">
+                    ${price.toFixed(2)}
+                    {i === heapProfit.buyIndex && <span className="ml-1 text-[10px] text-profit font-bold">BUY</span>}
+                    {i === heapProfit.sellIndex && <span className="ml-1 text-[10px] text-loss font-bold">SELL</span>}
+                  </td>
                   <td className="px-4 py-2 font-mono text-primary">
                     {spans[i] !== undefined ? `${spans[i]} days` : "—"}
                   </td>
@@ -149,7 +193,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
       {/* NGE Coverage */}
       <div className="rounded-lg border border-border bg-card p-4">
         <h3 className="mb-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          NGE Coverage
+          NGE Coverage (Stack-Based)
         </h3>
         <div className="flex items-center gap-3">
           <div className="h-2 flex-1 rounded-full bg-surface overflow-hidden">
@@ -158,7 +202,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
           <span className="text-sm font-mono font-bold text-foreground">{ngeCoverage}%</span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {nges.filter(v => v !== null).length} of {nges.length} prices have a next greater element
+          {nges.filter(v => v !== null).length} of {nges.length} prices have a next greater element (monotonic stack, O(n))
         </p>
       </div>
     </div>

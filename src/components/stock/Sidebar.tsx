@@ -1,6 +1,6 @@
-import { LayoutDashboard, Globe, GitCompareArrows, Star, History } from "lucide-react";
+import { LayoutDashboard, Globe, GitCompareArrows, Star, History, ArrowUpDown, HardDrive, BookOpen, FlaskConical } from "lucide-react";
 
-export type ViewType = "dashboard" | "market" | "compare" | "watchlist" | "historical";
+export type ViewType = "dashboard" | "market" | "compare" | "watchlist" | "historical" | "sorting" | "fileio" | "algorithms" | "tests";
 
 const NAV_ITEMS: { id: ViewType; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -8,6 +8,10 @@ const NAV_ITEMS: { id: ViewType; label: string; icon: React.ElementType }[] = [
   { id: "compare", label: "Compare Stocks", icon: GitCompareArrows },
   { id: "watchlist", label: "Watchlist", icon: Star },
   { id: "historical", label: "Historical Analysis", icon: History },
+  { id: "sorting", label: "Sorting Analysis", icon: ArrowUpDown },
+  { id: "fileio", label: "File I/O", icon: HardDrive },
+  { id: "algorithms", label: "Algorithm Guide", icon: BookOpen },
+  { id: "tests", label: "Test Cases", icon: FlaskConical },
 ];
 
 interface SidebarProps {

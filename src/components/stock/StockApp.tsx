@@ -6,6 +6,10 @@ import { MarketOverview } from "./MarketOverview";
 import { CompareStocks } from "./CompareStocks";
 import { Watchlist } from "./Watchlist";
 import { HistoricalAnalysis } from "./HistoricalAnalysis";
+import { SortingAnalysis } from "./SortingAnalysis";
+import { FileIOPanel } from "./FileIOPanel";
+import { AlgorithmExplanation } from "./AlgorithmExplanation";
+import { TestCases } from "./TestCases";
 import { AlertToast, type StockAlert } from "./AlertToast";
 import { type StockData, type CustomAlert } from "@/lib/stockData";
 import { fetchRealStockData, fetchLiveUpdate, getVolatility } from "@/lib/stockApi";
@@ -33,11 +37,18 @@ export function StockApp() {
       prevDataRef.current = data;
       setView("dashboard");
       setLiveMode(true);
+      toast.success(`Loaded ${data.symbol}: ${data.prices.length} data points (${data.prices.length >= 30 ? "historical" : "real-time"})`);
     } catch {
       toast.error(`Failed to fetch data for ${symbol}`);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const handleLoadData = useCallback((data: StockData) => {
+    setStockData(data);
+    prevDataRef.current = data;
+    setView("dashboard");
   }, []);
 
   const dismissAlert = useCallback((id: string) => {
@@ -76,6 +87,7 @@ export function StockApp() {
     if (newAlerts.length > 0) setAlerts((a) => [...a, ...newAlerts].slice(-5));
   }, [stockData?.currentPrice, volatility]);
 
+  // Live mode: fetch fresh quote every 5 seconds and append to dataset
   useEffect(() => {
     if (!liveMode || !stockData) return;
     const interval = setInterval(async () => {
@@ -117,7 +129,23 @@ export function StockApp() {
       case "compare": return <CompareStocks />;
       case "watchlist": return <Watchlist onSelectStock={handleSearch} />;
       case "historical": return <HistoricalAnalysis data={stockData} />;
+      case "sorting": return <SortingAnalysis data={stockData} />;
+      case "fileio": return <FileIOPanel data={stockData} onLoadData={handleLoadData} />;
+      case "algorithms": return <AlgorithmExplanation />;
+      case "tests": return <TestCases />;
     }
+  };
+
+  const viewLabels: Record<ViewType, string> = {
+    dashboard: "Dashboard",
+    market: "Market",
+    compare: "Compare",
+    watchlist: "Watchlist",
+    historical: "History",
+    sorting: "Sort",
+    fileio: "File I/O",
+    algorithms: "Algos",
+    tests: "Tests",
   };
 
   return (
@@ -130,16 +158,16 @@ export function StockApp() {
         </main>
       </div>
 
-      <nav className="flex border-t border-border bg-card md:hidden">
-        {(["dashboard", "market", "compare", "watchlist", "historical"] as ViewType[]).map((v) => (
+      <nav className="flex border-t border-border bg-card md:hidden overflow-x-auto">
+        {(Object.keys(viewLabels) as ViewType[]).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex-1 py-3 text-xs font-medium transition-colors ${
+            className={`flex-shrink-0 px-3 py-3 text-xs font-medium transition-colors ${
               view === v ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            {v === "dashboard" ? "Dashboard" : v === "market" ? "Market" : v === "compare" ? "Compare" : v === "watchlist" ? "Watchlist" : "History"}
+            {viewLabels[v]}
           </button>
         ))}
       </nav>
