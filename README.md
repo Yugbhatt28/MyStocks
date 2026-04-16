@@ -91,7 +91,7 @@ src/
 ## 🚀 HOW TO RUN
 
 Clone Repository
-git clone https://github.com/your-username/your-repo.git
+git clone https://github.com/Himanshu1399/github-importer
 
 Install Dependencies
 npm install
