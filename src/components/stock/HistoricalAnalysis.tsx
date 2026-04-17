@@ -158,7 +158,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
                 <th className="px-4 py-2 font-medium">#</th>
                 <th className="px-4 py-2 font-medium">Date</th>
                 <th className="px-4 py-2 font-medium">Price</th>
-                <th className="px-4 py-2 font-medium">Span (5 seconds)</th>
+                <th className="px-4 py-2 font-medium">Span (Hourly)</th>
                 <th className="px-4 py-2 font-medium">Next Greater Price</th>
               </tr>
             </thead>

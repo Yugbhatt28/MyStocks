@@ -55,6 +55,7 @@ export const fetchStockQuote = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => quoteSchema.parse(input))
   .handler(async ({ data }): Promise<{ quote: FinnhubQuote | null; error: string | null }> => {
     const apiKey = process.env.FINNHUB_API_KEY;
+    // console.log("API KEY:", apiKey);
     if (!apiKey) {
       return { quote: null, error: "FINNHUB_API_KEY is not configured" };
     }

@@ -17,7 +17,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
       fetchStockQuote({ data: { symbol: upperSymbol } }),
       fetchStockCandles({ data: { symbol: upperSymbol, resolution: "D", fromTimestamp: ninetyDaysAgo, toTimestamp: now } }),
     ]);
-
+    console.log("Candle status:", candleResult);
     if (quoteResult.error || !quoteResult.quote) {
       return { data: null, error: quoteResult.error || `No data available for ${upperSymbol}` };
     }
@@ -28,7 +28,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
     let prices: number[];
     let timestamps: string[];
 
-    if (candleResult.candle && candleResult.candle.prices.length > 0) {
+    if (candleResult.candle && candleResult.candle.prices.length > 10) {
       const candle = candleResult.candle;
       prices = candle.prices; // close prices
       timestamps = candle.timestamps.map((t: number) =>
@@ -83,6 +83,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
   } catch (err) {
     return { data: null, error: `Failed to fetch ${upperSymbol}: ${err instanceof Error ? err.message : String(err)}` };
   }
+  
 }
 
 /**

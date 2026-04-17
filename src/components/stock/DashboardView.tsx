@@ -176,7 +176,7 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Price</th>
-                  <th className="px-4 py-2 font-medium">Span (days)</th>
+                  <th className="px-4 py-2 font-medium">Span (hour)</th>
                    <th className="px-4 py-2 font-medium">Next Greater Price</th>
                  </tr>
                </thead>
@@ -187,7 +187,7 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
                      <tr key={idx} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                        <td className="px-4 py-2 text-muted-foreground">{data.timestamps[idx]}</td>
                        <td className="px-4 py-2 font-mono font-medium text-foreground">${price.toFixed(2)}</td>
-                       <td className="px-4 py-2 font-mono text-primary">{data.dsaAnalytics.stockSpan[idx] !== undefined ? `${data.dsaAnalytics.stockSpan[idx]} days` : "—"}</td>
+                       <td className="px-4 py-2 font-mono text-primary">{data.dsaAnalytics.stockSpan[idx] !== undefined ? `${data.dsaAnalytics.stockSpan[idx]} hour` : "—"}</td>
                       <td className="px-4 py-2 font-mono text-muted-foreground">
                         {data.dsaAnalytics.nextGreaterElement[idx] != null ? `$${(data.dsaAnalytics.nextGreaterElement[idx] as number).toFixed(2)}` : "None"}
                       </td>
