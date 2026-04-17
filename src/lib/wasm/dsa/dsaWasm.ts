@@ -10,6 +10,15 @@
 import createModule from "./dsa.js";
 
 const WASM_MAX = 200; // C++ static buffer size
+export const MIN_HISTORY = 30; // minimum data points for trend analysis
+
+/** Guard: returns true if dataset has enough history for trend analysis. */
+export function hasSufficientHistory(prices: number[] | { length: number }): boolean {
+  return prices.length >= MIN_HISTORY;
+}
+
+export const INSUFFICIENT_DATA_MESSAGE =
+  "Insufficient data: minimum 30 days required for trend analysis";
 
 let wasm: any = null;
 let loading: Promise<void> | null = null;

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { Database, ArrowUpDown, Filter, RefreshCw } from "lucide-react";
+import { Database, ArrowUpDown, Filter, RefreshCw, AlertTriangle } from "lucide-react";
 import type { StockData } from "@/lib/stockData";
-import { computeDSAAnalytics } from "@/lib/wasm/dsa/dsaWasm";
+import { computeDSAAnalytics, hasSufficientHistory, MIN_HISTORY, INSUFFICIENT_DATA_MESSAGE } from "@/lib/wasm/dsa/dsaWasm";
 import { useEffect } from "react";
 
 interface HistoricalAnalysisProps {
@@ -42,6 +42,22 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
           <Database className="mx-auto mb-3 h-12 w-12 opacity-30" />
           <p className="text-lg font-medium">No data for Historical Analysis</p>
           <p className="mt-1 text-sm">Search for a stock first from the Dashboard</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Guard: enforce minimum 30 days of history before running analysis
+  if (!hasSufficientHistory(data.prices)) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="max-w-md rounded-lg border border-border bg-card p-6 text-center">
+          <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-chart-4" />
+          <p className="text-lg font-semibold text-foreground">{INSUFFICIENT_DATA_MESSAGE}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {data.symbol} currently has {data.prices.length} data point{data.prices.length === 1 ? "" : "s"}.
+            Need at least {MIN_HISTORY} to safely run Stock Span, Heap analysis, and trend algorithms.
+          </p>
         </div>
       </div>
     );

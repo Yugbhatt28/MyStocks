@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown, Loader2, Activity, Pause } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown, Loader2, Activity, Pause, AlertTriangle } from "lucide-react";
 import type { StockData, CustomAlert } from "@/lib/stockData";
 import { StockChart } from "./StockChart";
 import { StrategySimulator } from "./StrategySimulator";
@@ -7,6 +7,7 @@ import { EventTimeline } from "./EventTimeline";
 import { AdvancedAlerts } from "./AdvancedAlerts";
 import { TimeframeFilter } from "./TimeframeFilter";
 import { DSAVisualizer } from "./DSAVisualizer";
+import { hasSufficientHistory, MIN_HISTORY, INSUFFICIENT_DATA_MESSAGE } from "@/lib/wasm/dsa/dsaWasm";
 import { useState } from "react";
 
 interface DashboardViewProps {
@@ -61,6 +62,11 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
 
   const chartPrices = filteredPrices || data.prices;
   const chartTimestamps = filteredTimestamps || data.timestamps;
+
+  // Mode detection: real-time when LIVE & history < 30 → span in minutes; else historical → days
+  const enoughHistory = hasSufficientHistory(data.prices);
+  const isRealtimeMode = !!liveMode && !enoughHistory;
+  const spanUnit = isRealtimeMode ? "min" : "days";
 
   return (
     <div className="space-y-4">
@@ -127,18 +133,32 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
       {/* Sliding Window Analytics (C++ Deque) */}
       <SlidingWindowCards data={data} />
 
-      {/* DSA Analytics (C++ WASM) */}
+      {/* DSA Analytics (C++ WASM) — guarded by 30-day minimum */}
       <div>
         <h3 className="mb-1 text-sm font-semibold text-muted-foreground uppercase tracking-wider">DSA Analytics</h3>
-        <p className="mb-3 text-[10px] text-muted-foreground">Powered by C++ WebAssembly</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <DSACard label="Max Price" value={`$${data.dsaAnalytics.maxPrice.toFixed(2)}`} algo="HEAP" colorClass="text-profit" />
-          <DSACard label="Min Price" value={`$${data.dsaAnalytics.minPrice.toFixed(2)}`} algo="HEAP" colorClass="text-loss" />
-          <DSACard label="Greedy Profit" value={`$${data.dsaAnalytics.maxProfit.toFixed(2)}`} algo="GREEDY" colorClass="text-primary" />
-          <DSACard label="Heap Profit" value={`$${data.dsaAnalytics.heapProfit.profit.toFixed(2)}`} algo="HEAP" colorClass="text-primary" />
-          <DSACard label="Avg Span" value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} days`} algo="STACK" colorClass="text-chart-4" />
-          <DSACard label="NGE Coverage" value={`${Math.round((data.dsaAnalytics.nextGreaterElement.filter((v) => v !== null).length / data.dsaAnalytics.nextGreaterElement.length) * 100)}%`} algo="STACK" colorClass="text-chart-5" />
-        </div>
+        <p className="mb-3 text-[10px] text-muted-foreground">
+          Powered by C++ WebAssembly · Mode: {isRealtimeMode ? "Real-Time (minutes)" : "Historical (days)"}
+        </p>
+        {!enoughHistory ? (
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-chart-4" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">{INSUFFICIENT_DATA_MESSAGE}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Have {data.prices.length} of {MIN_HISTORY} required data points. Span, heap and trend algorithms are paused until enough history is available.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <DSACard label="Max Price" value={`$${data.dsaAnalytics.maxPrice.toFixed(2)}`} algo="HEAP" colorClass="text-profit" />
+            <DSACard label="Min Price" value={`$${data.dsaAnalytics.minPrice.toFixed(2)}`} algo="HEAP" colorClass="text-loss" />
+            <DSACard label="Greedy Profit" value={`$${data.dsaAnalytics.maxProfit.toFixed(2)}`} algo="GREEDY" colorClass="text-primary" />
+            <DSACard label="Heap Profit" value={`$${data.dsaAnalytics.heapProfit.profit.toFixed(2)}`} algo="HEAP" colorClass="text-primary" />
+            <DSACard label="Avg Span" value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} ${spanUnit}`} algo="STACK" colorClass="text-chart-4" />
+            <DSACard label="NGE Coverage" value={`${Math.round((data.dsaAnalytics.nextGreaterElement.filter((v) => v !== null).length / data.dsaAnalytics.nextGreaterElement.length) * 100)}%`} algo="STACK" colorClass="text-chart-5" />
+          </div>
+        )}
       </div>
 
       {/* Strategy Simulator */}
@@ -176,7 +196,7 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Price</th>
-                  <th className="px-4 py-2 font-medium">Span (hour)</th>
+                  <th className="px-4 py-2 font-medium">Span ({spanUnit})</th>
                    <th className="px-4 py-2 font-medium">Next Greater Price</th>
                  </tr>
                </thead>
@@ -187,7 +207,7 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
                      <tr key={idx} className="border-b border-border/50 hover:bg-surface-hover transition-colors">
                        <td className="px-4 py-2 text-muted-foreground">{data.timestamps[idx]}</td>
                        <td className="px-4 py-2 font-mono font-medium text-foreground">${price.toFixed(2)}</td>
-                       <td className="px-4 py-2 font-mono text-primary">{data.dsaAnalytics.stockSpan[idx] !== undefined ? `${data.dsaAnalytics.stockSpan[idx]} hour` : "—"}</td>
+                       <td className="px-4 py-2 font-mono text-primary">{data.dsaAnalytics.stockSpan[idx] !== undefined ? `${data.dsaAnalytics.stockSpan[idx]} ${spanUnit}` : "—"}</td>
                       <td className="px-4 py-2 font-mono text-muted-foreground">
                         {data.dsaAnalytics.nextGreaterElement[idx] != null ? `$${(data.dsaAnalytics.nextGreaterElement[idx] as number).toFixed(2)}` : "None"}
                       </td>
