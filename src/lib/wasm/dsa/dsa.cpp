@@ -32,6 +32,7 @@
 #include <cmath>
 
 constexpr int MAX_POINTS = 200;
+constexpr int MIN_HISTORY = 30; // minimum data points required for trend analysis
 
 static double span_buffer[MAX_POINTS];
 static double nge_buffer[MAX_POINTS];
@@ -119,13 +120,30 @@ static double roundCents(double value) {
 
 extern "C" {
 
+// Guard: returns 1 if dataset has enough history for trend analysis, 0 otherwise.
+EMSCRIPTEN_KEEPALIVE
+int hasSufficientHistory(int n) {
+    return n >= MIN_HISTORY ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int getMinHistoryRequirement() {
+    return MIN_HISTORY;
+}
+
+// Max profit — uses incremental MinHeap so the cheapest historical price is tracked
+// in O(log n) instead of repeated std::min scans. Signature preserved.
 EMSCRIPTEN_KEEPALIVE
 double calculateMaxProfit(const double* prices, int n) {
     if (n < 2) return 0.0;
-    double minPrice = prices[0], maxProfit = 0.0;
+    MinHeap heap;
+    heap.init(prices);
+    heap.push(0);
+    double maxProfit = 0.0;
     for (int i = 1; i < n; ++i) {
-        maxProfit = std::max(maxProfit, prices[i] - minPrice);
-        minPrice  = std::min(minPrice, prices[i]);
+        double profit = prices[i] - prices[heap.top()];
+        if (profit > maxProfit) maxProfit = profit;
+        heap.push(i);
     }
     return roundCents(maxProfit);
 }
@@ -169,16 +187,21 @@ double calculateVolatility(const double* prices, int n) {
 EMSCRIPTEN_KEEPALIVE double* getSpanBuffer() { return span_buffer; }
 EMSCRIPTEN_KEEPALIVE double* getNgeBuffer()  { return nge_buffer; }
 
+// Strategy simulation — uses MinHeap to track cheapest buy index (no std::min scan).
 EMSCRIPTEN_KEEPALIVE
 double* simulateStrategy(const double* prices, int n) {
     strategy_result[0] = 0; strategy_result[1] = 0; strategy_result[2] = 0;
     if (n < 2) return strategy_result;
-    int bestBuy = 0, minIdx = 0;
+    MinHeap heap;
+    heap.init(prices);
+    heap.push(0);
+    int bestBuy = 0;
     double maxProfit = 0.0;
     for (int i = 1; i < n; ++i) {
+        int minIdx = heap.top();
         double profit = prices[i] - prices[minIdx];
         if (profit > maxProfit) { maxProfit = profit; bestBuy = minIdx; strategy_result[1] = i; }
-        if (prices[i] < prices[minIdx]) minIdx = i;
+        heap.push(i);
     }
     strategy_result[0] = bestBuy;
     strategy_result[2] = roundCents(maxProfit);
