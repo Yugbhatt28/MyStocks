@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown, Loader2, Activity, Pause } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUp, ArrowDown, Zap, BarChart2, ChevronUp, ChevronDown, Loader2, Activity, Pause, AlertTriangle } from "lucide-react";
 import type { StockData, CustomAlert } from "@/lib/stockData";
 import { StockChart } from "./StockChart";
 import { StrategySimulator } from "./StrategySimulator";
@@ -7,6 +7,7 @@ import { EventTimeline } from "./EventTimeline";
 import { AdvancedAlerts } from "./AdvancedAlerts";
 import { TimeframeFilter } from "./TimeframeFilter";
 import { DSAVisualizer } from "./DSAVisualizer";
+import { hasSufficientHistory, MIN_HISTORY, INSUFFICIENT_DATA_MESSAGE } from "@/lib/wasm/dsa/dsaWasm";
 import { useState } from "react";
 
 interface DashboardViewProps {
