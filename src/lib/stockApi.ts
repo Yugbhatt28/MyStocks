@@ -28,7 +28,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
     let prices: number[];
     let timestamps: string[];
 
-    if (candleResult.candle && candleResult.candle.prices.length > 10) {
+    if (candleResult.candle && candleResult.candle.prices.length > 0) {
       const candle = candleResult.candle;
       prices = candle.prices; // close prices
       timestamps = candle.timestamps.map((t: number) =>
@@ -39,7 +39,12 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
       if (Math.abs(lastCandle - quote.currentPrice) > 0.01) {
         prices.push(quote.currentPrice);
         timestamps.push(
-          new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })
+          new Date().toLocaleString("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+})
         );
       }
     } else if (existingData && existingData.symbol === upperSymbol) {
@@ -47,7 +52,7 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
       prices = [...existingData.prices, quote.currentPrice].slice(-500);
       timestamps = [
         ...existingData.timestamps,
-        new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        new Date().toLocaleString("en-US", {month: "short",day: "numeric",hour: "2-digit",minute: "2-digit"}),
       ].slice(-500);
     } else {
       // Fallback: use real data points only (open → current)
@@ -55,7 +60,12 @@ export async function fetchRealStockData(symbol: string, existingData?: StockDat
       const nowMs = Date.now();
       timestamps = prices.map((_, i) => {
         const d = new Date(nowMs - (prices.length - 1 - i) * 3600000);
-        return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        return d.toLocaleString("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+});
       });
     }
 

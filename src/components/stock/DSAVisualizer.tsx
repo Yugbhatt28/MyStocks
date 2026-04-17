@@ -57,7 +57,7 @@ export function DSAVisualizer({ stockSpan, nextGreaterElement, prices }: DSAVisu
           {activeAlgo === "span" && (
             <div>
               <p className="mb-2 text-[10px] text-muted-foreground">
-                For each day, count consecutive preceding days with price ≤ today's price. Uses a monotonic stack for O(n) computation.
+                For each day, count consecutive preceding days/hours with price ≤ today's price. Uses a monotonic stack for O(n) computation.
               </p>
               <div className="grid gap-1">
                 {displayPrices.map((price, i) => (
