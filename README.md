@@ -1,4 +1,4 @@
-# 🚀 Stock Analysis Engine
+# 🚀 SpanX : Stock Analyser
 
 ### ⚡ DSA + C++ + WebAssembly + React
 
@@ -6,7 +6,7 @@
 
 ## 📌 Overview
 
-Stock Analysis Engine is an interactive platform that applies **Data Structures and Algorithms (DSA)** to real-world stock market data.
+SpanX is an interactive platform that applies **Data Structures and Algorithms (DSA)** to real-world stock market data.
 
 It combines:
 
@@ -107,6 +107,7 @@ cd your-repo
 ### 2. Install Dependencies
 
 ```
+npm install vite@latest
 npm install
 ```
 
