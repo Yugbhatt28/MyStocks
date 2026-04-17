@@ -63,6 +63,11 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
   const chartPrices = filteredPrices || data.prices;
   const chartTimestamps = filteredTimestamps || data.timestamps;
 
+  // Mode detection: real-time when LIVE & history < 30 → span in minutes; else historical → days
+  const enoughHistory = hasSufficientHistory(data.prices);
+  const isRealtimeMode = !!liveMode && !enoughHistory;
+  const spanUnit = isRealtimeMode ? "min" : "days";
+
   return (
     <div className="space-y-4">
       {/* Hero Section */}
@@ -128,18 +133,32 @@ export function DashboardView({ data, loading, liveMode, previousData, volatilit
       {/* Sliding Window Analytics (C++ Deque) */}
       <SlidingWindowCards data={data} />
 
-      {/* DSA Analytics (C++ WASM) */}
+      {/* DSA Analytics (C++ WASM) — guarded by 30-day minimum */}
       <div>
         <h3 className="mb-1 text-sm font-semibold text-muted-foreground uppercase tracking-wider">DSA Analytics</h3>
-        <p className="mb-3 text-[10px] text-muted-foreground">Powered by C++ WebAssembly</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <DSACard label="Max Price" value={`$${data.dsaAnalytics.maxPrice.toFixed(2)}`} algo="HEAP" colorClass="text-profit" />
-          <DSACard label="Min Price" value={`$${data.dsaAnalytics.minPrice.toFixed(2)}`} algo="HEAP" colorClass="text-loss" />
-          <DSACard label="Greedy Profit" value={`$${data.dsaAnalytics.maxProfit.toFixed(2)}`} algo="GREEDY" colorClass="text-primary" />
-          <DSACard label="Heap Profit" value={`$${data.dsaAnalytics.heapProfit.profit.toFixed(2)}`} algo="HEAP" colorClass="text-primary" />
-          <DSACard label="Avg Span" value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} days`} algo="STACK" colorClass="text-chart-4" />
-          <DSACard label="NGE Coverage" value={`${Math.round((data.dsaAnalytics.nextGreaterElement.filter((v) => v !== null).length / data.dsaAnalytics.nextGreaterElement.length) * 100)}%`} algo="STACK" colorClass="text-chart-5" />
-        </div>
+        <p className="mb-3 text-[10px] text-muted-foreground">
+          Powered by C++ WebAssembly · Mode: {isRealtimeMode ? "Real-Time (minutes)" : "Historical (days)"}
+        </p>
+        {!enoughHistory ? (
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-4">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-chart-4" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">{INSUFFICIENT_DATA_MESSAGE}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Have {data.prices.length} of {MIN_HISTORY} required data points. Span, heap and trend algorithms are paused until enough history is available.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <DSACard label="Max Price" value={`$${data.dsaAnalytics.maxPrice.toFixed(2)}`} algo="HEAP" colorClass="text-profit" />
+            <DSACard label="Min Price" value={`$${data.dsaAnalytics.minPrice.toFixed(2)}`} algo="HEAP" colorClass="text-loss" />
+            <DSACard label="Greedy Profit" value={`$${data.dsaAnalytics.maxProfit.toFixed(2)}`} algo="GREEDY" colorClass="text-primary" />
+            <DSACard label="Heap Profit" value={`$${data.dsaAnalytics.heapProfit.profit.toFixed(2)}`} algo="HEAP" colorClass="text-primary" />
+            <DSACard label="Avg Span" value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} ${spanUnit}`} algo="STACK" colorClass="text-chart-4" />
+            <DSACard label="NGE Coverage" value={`${Math.round((data.dsaAnalytics.nextGreaterElement.filter((v) => v !== null).length / data.dsaAnalytics.nextGreaterElement.length) * 100)}%`} algo="STACK" colorClass="text-chart-5" />
+          </div>
+        )}
       </div>
 
       {/* Strategy Simulator */}
