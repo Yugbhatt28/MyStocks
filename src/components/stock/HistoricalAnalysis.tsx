@@ -1,74 +1,186 @@
-import { useState, useMemo } from "react";
-import { Database, ArrowUpDown, Filter, RefreshCw, AlertTriangle } from "lucide-react";
-import type { StockData } from "@/lib/stockData";
+import { useState, useEffect, useCallback } from "react";
+import { Database, ArrowUpDown, Filter, RefreshCw, AlertTriangle, Download, Loader2 } from "lucide-react";
+import type { StockData, DSAAnalytics } from "@/lib/stockData";
 import { computeDSAAnalytics, hasSufficientHistory, MIN_HISTORY, INSUFFICIENT_DATA_MESSAGE } from "@/lib/wasm/dsa/dsaWasm";
-import { useEffect } from "react";
+import { fetchStockCandles } from "@/lib/finnhub.functions";
+import { toast } from "sonner";
 
 interface HistoricalAnalysisProps {
   data: StockData | null;
 }
 
+// Historical-tab-only buffer (isolated from real-time pipeline)
+interface HistoricalBuffer {
+  symbol: string;
+  prices: number[];
+  timestamps: string[];
+  fetchedAt: number;
+}
+
+const HISTORICAL_DAYS = 180; // request ~6 months of daily candles to comfortably exceed 30
+const isHistoricalMode = true; // local flag — never leaves this module
+
 export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
   const [lastN, setLastN] = useState<number>(0); // 0 = full dataset
-  const [slicedAnalytics, setSlicedAnalytics] = useState<StockData["dsaAnalytics"] | null>(null);
+  const [slicedAnalytics, setSlicedAnalytics] = useState<DSAAnalytics | null>(null);
   const [recomputing, setRecomputing] = useState(false);
 
-  // Recompute DSA analytics whenever slicing changes
+  // Isolated historical state — does not touch real-time buffer
+  const [historicalBuffer, setHistoricalBuffer] = useState<HistoricalBuffer | null>(null);
+  const [fullAnalytics, setFullAnalytics] = useState<DSAAnalytics | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Isolated historical fetcher — separate from real-time fetch
+  const fetchHistoricalData = useCallback(async (symbol: string) => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const from = now - HISTORICAL_DAYS * 24 * 60 * 60;
+      const { candle, error } = await fetchStockCandles({
+        data: { symbol, resolution: "D", fromTimestamp: from, toTimestamp: now },
+      });
+
+      if (error || !candle || candle.prices.length === 0) {
+        setFetchError(error || `No historical data available for ${symbol}`);
+        setHistoricalBuffer(null);
+        setFullAnalytics(null);
+        return;
+      }
+
+      const buffer: HistoricalBuffer = {
+        symbol,
+        prices: candle.prices,
+        timestamps: candle.timestamps.map((t) =>
+          new Date(t * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })
+        ),
+        fetchedAt: Date.now(),
+      };
+      setHistoricalBuffer(buffer);
+
+      // Feed the isolated buffer into the existing DSA engine (unchanged signature)
+      if (buffer.prices.length >= MIN_HISTORY) {
+        const analytics = await computeDSAAnalytics(buffer.prices);
+        setFullAnalytics(analytics);
+      } else {
+        setFullAnalytics(null);
+      }
+      toast.success(`Loaded ${buffer.prices.length} historical days for ${symbol}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setFetchError(`Failed to fetch historical data: ${msg}`);
+      setHistoricalBuffer(null);
+      setFullAnalytics(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch when symbol changes (or invalidate stale buffer)
   useEffect(() => {
-    if (!data || data.prices.length < 2) { setSlicedAnalytics(null); return; }
+    if (!data?.symbol) return;
+    if (historicalBuffer?.symbol === data.symbol) return;
+    fetchHistoricalData(data.symbol);
+  }, [data?.symbol, historicalBuffer?.symbol, fetchHistoricalData]);
 
-    const effectiveN = lastN > 0 ? Math.min(lastN, data.prices.length) : data.prices.length;
-    const startIdx = data.prices.length - effectiveN;
-    const slicedPrices = data.prices.slice(startIdx);
+  // Recompute analytics when slicing the historical buffer
+  useEffect(() => {
+    if (!historicalBuffer || historicalBuffer.prices.length < MIN_HISTORY || !fullAnalytics) {
+      setSlicedAnalytics(null);
+      return;
+    }
+    const total = historicalBuffer.prices.length;
+    const effectiveN = lastN > 0 ? Math.min(lastN, total) : total;
+    const startIdx = total - effectiveN;
 
-    // If full dataset, use existing analytics
     if (startIdx === 0) {
-      setSlicedAnalytics(data.dsaAnalytics);
+      setSlicedAnalytics(fullAnalytics);
       return;
     }
 
-    // Recompute for sliced data
     setRecomputing(true);
-    computeDSAAnalytics(slicedPrices).then((analytics) => {
+    computeDSAAnalytics(historicalBuffer.prices.slice(startIdx)).then((analytics) => {
       setSlicedAnalytics(analytics);
       setRecomputing(false);
     });
-  }, [data, lastN]);
+  }, [historicalBuffer, fullAnalytics, lastN]);
 
-  if (!data || data.prices.length < 2) {
+  // No symbol selected yet
+  if (!data) {
     return (
       <div className="flex h-96 items-center justify-center text-muted-foreground">
         <div className="text-center">
           <Database className="mx-auto mb-3 h-12 w-12 opacity-30" />
-          <p className="text-lg font-medium">No data for Historical Analysis</p>
+          <p className="text-lg font-medium">No stock selected</p>
           <p className="mt-1 text-sm">Search for a stock first from the Dashboard</p>
         </div>
       </div>
     );
   }
 
-  // Guard: enforce minimum 30 days of history before running analysis
-  if (!hasSufficientHistory(data.prices)) {
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-primary" />
+          <p className="text-lg font-medium text-foreground">Fetching historical data for {data.symbol}…</p>
+          <p className="mt-1 text-sm text-muted-foreground">Requesting up to {HISTORICAL_DAYS} days of daily candles</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fetch error
+  if (fetchError) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="max-w-md rounded-lg border border-border bg-card p-6 text-center">
+          <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-loss" />
+          <p className="text-lg font-semibold text-foreground">Historical fetch failed</p>
+          <p className="mt-2 text-sm text-muted-foreground">{fetchError}</p>
+          <button
+            onClick={() => fetchHistoricalData(data.symbol)}
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Insufficient data guard (uses isolated historical buffer, not real-time data)
+  if (!historicalBuffer || !hasSufficientHistory(historicalBuffer.prices)) {
+    const count = historicalBuffer?.prices.length ?? 0;
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="max-w-md rounded-lg border border-border bg-card p-6 text-center">
           <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-chart-4" />
           <p className="text-lg font-semibold text-foreground">{INSUFFICIENT_DATA_MESSAGE}</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {data.symbol} currently has {data.prices.length} data point{data.prices.length === 1 ? "" : "s"}.
+            {data.symbol} returned {count} day{count === 1 ? "" : "s"} of historical data.
             Need at least {MIN_HISTORY} to safely run Stock Span, Heap analysis, and trend algorithms.
           </p>
+          <button
+            onClick={() => fetchHistoricalData(data.symbol)}
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            <Download className="h-4 w-4" /> Reload Historical Data
+          </button>
         </div>
       </div>
     );
   }
 
-  const effectiveN = lastN > 0 ? Math.min(lastN, data.prices.length) : data.prices.length;
-  const startIdx = data.prices.length - effectiveN;
-  const prices = data.prices.slice(startIdx);
-  const timestamps = data.timestamps.slice(startIdx);
+  const total = historicalBuffer.prices.length;
+  const effectiveN = lastN > 0 ? Math.min(lastN, total) : total;
+  const startIdx = total - effectiveN;
+  const prices = historicalBuffer.prices.slice(startIdx);
+  const timestamps = historicalBuffer.timestamps.slice(startIdx);
 
-  const analytics = slicedAnalytics || data.dsaAnalytics;
+  const analytics = slicedAnalytics || fullAnalytics!;
   const spans = analytics.stockSpan;
   const nges = analytics.nextGreaterElement;
   const { maxPrice, minPrice, maxProfit, heapProfit } = analytics;
@@ -83,11 +195,11 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-foreground">Historical Analysis</h2>
           <p className="text-sm text-muted-foreground">
-            DSA-powered analytics on {data.symbol} — {effectiveN} data points
+            DSA-powered analytics on {data.symbol} — {effectiveN} of {total} historical days
             {recomputing && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary">
                 <RefreshCw className="h-3 w-3 animate-spin" /> Recomputing...
@@ -96,18 +208,25 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchHistoricalData(data.symbol)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:bg-surface-hover"
+            title="Reload historical data"
+          >
+            <Download className="h-3.5 w-3.5" /> Reload
+          </button>
           <Filter className="h-4 w-4 text-muted-foreground" />
           <select
             value={lastN}
             onChange={(e) => setLastN(Number(e.target.value))}
             className="rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground"
           >
-            <option value={0}>Full Dataset ({data.prices.length})</option>
-            <option value={7}>Last 7 days</option>
-            <option value={14}>Last 14 days</option>
+            <option value={0}>Full Dataset ({total})</option>
             <option value={30}>Last 30 days</option>
             <option value={60}>Last 60 days</option>
             <option value={90}>Last 90 days</option>
+            <option value={120}>Last 120 days</option>
+            <option value={180}>Last 180 days</option>
           </select>
         </div>
       </div>
@@ -118,7 +237,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
         <SummaryCard label="Min Price" value={`$${minPrice.toFixed(2)}`} algo="HEAP" detail="Min-heap extraction" />
         <SummaryCard label="Greedy Profit" value={`$${maxProfit.toFixed(2)}`} algo="GREEDY" detail="Single-pass O(n)" />
         <SummaryCard label="Heap Profit" value={`$${heapProfit.profit.toFixed(2)}`} algo="HEAP" detail={`Buy #${heapProfit.buyIndex} → Sell #${heapProfit.sellIndex}`} />
-        <SummaryCard label="Avg Span" value={`${avgSpan} hours`} algo="STACK" detail="Monotonic stack" />
+        <SummaryCard label="Avg Span" value={`${avgSpan} days`} algo="STACK" detail="Monotonic stack" />
       </div>
 
       {/* Heap Profit Detail */}
@@ -152,7 +271,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Algorithm: For each day, the min-heap provides the lowest price seen so far in O(log n). 
+            Algorithm: For each day, the min-heap provides the lowest price seen so far in O(log n).
             Profit = current price − heap.top(). Total: O(n log n) time, O(n) space.
           </p>
         </div>
@@ -163,7 +282,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             <ArrowUpDown className="mr-1 inline h-4 w-4" />
-            Full Analytics Table
+            Full Analytics Table {isHistoricalMode && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">HISTORICAL</span>}
           </h3>
           <span className="text-xs text-muted-foreground">{prices.length} entries</span>
         </div>
@@ -174,7 +293,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
                 <th className="px-4 py-2 font-medium">#</th>
                 <th className="px-4 py-2 font-medium">Date</th>
                 <th className="px-4 py-2 font-medium">Price</th>
-                <th className="px-4 py-2 font-medium">Span (Hourly)</th>
+                <th className="px-4 py-2 font-medium">Span (Days)</th>
                 <th className="px-4 py-2 font-medium">Next Greater Price</th>
               </tr>
             </thead>
