@@ -1,141 +1,162 @@
-# 🚀 STOCK ANALYSIS ENGINE
+# 🚀 Stock Analysis Engine
 
-### ⚡ *DSA + C++ + WebAssembly + React*
+### ⚡ DSA + C++ + WebAssembly + React
 
 ---
 
-## 📌 OVERVIEW
+## 📌 Overview
 
-A powerful **Stock Analysis Platform** that applies **Data Structures and Algorithms (DSA)** to real-world financial data.
+Stock Analysis Engine is an interactive platform that applies **Data Structures and Algorithms (DSA)** to real-world stock market data.
 
-✨ Combines:
+It combines:
 
 * ⚙️ High-performance **C++ algorithms**
-* 🌐 **WebAssembly** for browser execution
-* 🎨 **React UI** for visualization
+* 🌐 **WebAssembly** for near-native speed in browser
+* 🎨 **React frontend** for visualization
 
-👉 Built to connect **theory (DSA)** with **real-world stock analysis**
-
----
-
-## 🎯 KEY FEATURES
-
-✔ Interactive Dashboard
-✔ Real-time Stock Analysis
-✔ Smart Stock Search
-✔ Historical Data Insights
-✔ Alert System
-✔ Strategy Simulator
-✔ High-speed computation using WebAssembly
+👉 The goal is to bridge **theoretical DSA concepts** with **practical financial analysis**
 
 ---
 
-## 🧠 DSA ALGORITHMS USED
+## 🎯 Features
 
-• Max Profit → Greedy → O(n)
-• Stock Span → Stack → O(n)
-• Sliding Window → Optimization → O(n)
-• Sorting → Ranking → O(n log n)
-• Volatility → Statistical Analysis → O(n)
+* ✨ Interactive Dashboard
+* 📊 Real-time Stock Analysis
+* 🔍 Smart Search Functionality
+* 📉 Historical Data Insights
+* 🔔 Alert System
+* 🧪 Strategy Simulator
+* ⚡ High-performance computation using WebAssembly
 
 ---
 
-## 🏗️ SYSTEM ARCHITECTURE
+## 🧠 DSA Algorithms Used
 
+| Algorithm      | Concept      | Time Complexity |
+| -------------- | ------------ | --------------- |
+| Max Profit     | Greedy       | O(n)            |
+| Stock Span     | Stack        | O(n)            |
+| Sliding Window | Optimization | O(n)            |
+| Sorting        | Ranking      | O(n log n)      |
+| Volatility     | Statistics   | O(n)            |
+
+---
+
+## 🏗️ System Architecture
+
+```
 React Frontend (.tsx)
-⬇
+        ↓
 JavaScript Bridge
-⬇
+        ↓
 WebAssembly Module
-⬇
+        ↓
 C++ DSA Engine
-⬇
+        ↓
 Supabase Database
+```
 
 ---
 
-## 🧰 TECH STACK
+## 🧰 Tech Stack
 
-Frontend → React + TypeScript
-Backend/Data → Supabase
-Algorithms → C++
-Integration → WebAssembly (WASM)
-Visualization → Chart.js
+* **Frontend:** React + TypeScript
+* **Backend/Data:** Supabase
+* **Algorithms:** C++
+* **Integration:** WebAssembly (WASM)
+* **Visualization:** Chart.js
 
 ---
 
-## ⚙️ WORKING FLOW
+## ⚙️ How It Works
 
-1. User inputs stock data
-2. Data sent to WebAssembly
+1. User inputs stock data via UI
+2. Data is passed to WebAssembly module
 3. C++ executes optimized algorithms
-4. Results returned instantly
-5. UI displays insights via charts
+4. Results are returned instantly
+5. UI displays insights using charts
 
 ---
 
-## 📂 PROJECT STRUCTURE
+## 📂 Project Structure
 
-src/
-├── components/
-├── views/
-├── lib/
-│    └── wasm/
-│         └── dsa/
-│              └── dsa.cpp
-├── utils/
-└── App.tsx
+```
+src
+│
+├── components      # UI components
+├── views           # Pages / screens
+├── lib
+│   └── wasm
+│       └── dsa
+│           └── dsa.cpp   # C++ DSA logic
+├── utils           # Helper functions
+└── App.tsx         # Main entry point
+```
 
 ---
 
-## 🚀 HOW TO RUN
+## 🚀 Getting Started
 
-Clone Repository
-git clone https://github.com/Himanshu1399/github-importer
+### 1. Clone Repository
 
-Install Dependencies
+```
+git clone https://github.com/Himanshu1399/SpanX
+cd your-repo
+```
+
+### 2. Install Dependencies
+
+```
 npm install
+```
 
-Run Project
+### 3. Run the Project
+
+```
 npm run dev
+```
 
 ---
 
-## ⚠️ CHALLENGES
+## ⚠️ Challenges Faced
 
-• WebAssembly integration
-• Cross-language debugging (C++ ↔ JS)
-• Async data handling
-• Chart rendering issues
-
----
-
-## 👥 TEAM CONTRIBUTION
-
-Member 1 → C++ DSA Implementation
-Member 2 → WebAssembly Integration
-Member 3 → Frontend UI & Charts
-Member 4 → Features & Integration
+* Integrating C++ with React using WebAssembly
+* Debugging cross-language execution (C++ ↔ JS)
+* Handling asynchronous data flow
+* Chart rendering issues
 
 ---
 
-## 🔮 FUTURE SCOPE
+## 👥 Team Contribution
 
-📡 Real-time stock APIs
-🤖 Machine learning prediction
-📱 Mobile application
+* **Member 1:** C++ DSA Implementation
+* **Member 2:** WebAssembly Integration
+* **Member 3:** Frontend UI & Charts
+* **Member 4:** Features & System Integration
+
+---
+
+## 🔮 Future Scope
+
+📡 Real-time stock API integration
+🤖 Machine learning-based prediction
+📱 Mobile application development
 📊 Advanced trading strategies
 
 ---
 
-## 🏁 CONCLUSION
+## 🏁 Conclusion
 
-This project shows how **DSA can be applied to real-world systems** by combining:
+This project demonstrates how **DSA can be applied to real-world systems** by combining:
 
-🧠 Algorithms + 🏗️ System Design + 🌐 Modern Web Tech
+🧠 Algorithmic Thinking
+🏗️ System Design
+🌐 Modern Web Technologies
 
 ---
 
-## ⭐ SUPPORT
+## ⭐ Support
 
-If you like this project, give it a ⭐ on GitHub!
+If you found this project useful, consider giving it a ⭐ on GitHub!
+
+---
