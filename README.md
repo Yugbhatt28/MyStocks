@@ -107,6 +107,7 @@ cd your-repo
 ### 2. Install Dependencies
 
 ```
+npm install vite@latest
 npm install
 ```
 
