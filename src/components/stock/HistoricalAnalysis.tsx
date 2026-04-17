@@ -118,7 +118,7 @@ export function HistoricalAnalysis({ data }: HistoricalAnalysisProps) {
         <SummaryCard label="Min Price" value={`$${minPrice.toFixed(2)}`} algo="HEAP" detail="Min-heap extraction" />
         <SummaryCard label="Greedy Profit" value={`$${maxProfit.toFixed(2)}`} algo="GREEDY" detail="Single-pass O(n)" />
         <SummaryCard label="Heap Profit" value={`$${heapProfit.profit.toFixed(2)}`} algo="HEAP" detail={`Buy #${heapProfit.buyIndex} → Sell #${heapProfit.sellIndex}`} />
-        <SummaryCard label="Avg Span" value={`${avgSpan} days`} algo="STACK" detail="Monotonic stack" />
+        <SummaryCard label="Avg Span" value={`${avgSpan} hours`} algo="STACK" detail="Monotonic stack" />
       </div>
 
       {/* Heap Profit Detail */}

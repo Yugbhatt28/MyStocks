@@ -280,7 +280,7 @@ export function DashboardView({
             />
             <DSACard
               label="Avg Span"
-              value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} ${spanUnit}`}
+              value={`${(data.dsaAnalytics.stockSpan.reduce((a, b) => a + b, 0) / data.dsaAnalytics.stockSpan.length).toFixed(1)} hours`}
               algo="STACK"
               colorClass="text-chart-4"
             />
@@ -331,7 +331,7 @@ export function DashboardView({
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Price</th>
-                  <th className="px-4 py-2 font-medium">Span ({spanUnit})</th>
+                  <th className="px-4 py-2 font-medium">Span (Hour)</th>
                   <th className="px-4 py-2 font-medium">Next Greater Price</th>
                 </tr>
               </thead>
